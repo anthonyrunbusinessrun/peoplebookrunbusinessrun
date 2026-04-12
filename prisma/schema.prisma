@@ -1,10 +1,12 @@
 generator client {
   provider = "prisma-client-js"
 }
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
 model Role {
   id             String          @id @default(cuid())
   airtableId     String?         @unique
@@ -22,8 +24,10 @@ model Role {
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   applicants     ApplicantRole[]
+
   @@map("roles")
 }
+
 model Applicant {
   id                String           @id @default(cuid())
   airtableId        String?          @unique
@@ -51,24 +55,40 @@ model Applicant {
   lastContacted     DateTime?
   dateApplied       DateTime?
   notes             String?
-  q1  String? q2  String? q3  String? q4  String? q5  String?
-  q6  String? q7  String? q8  String? q9  String? q10 String?
-  q11 String? q12 String? q13 String? q14 String? q15 String?
+  q1                String?
+  q2                String?
+  q3                String?
+  q4                String?
+  q5                String?
+  q6                String?
+  q7                String?
+  q8                String?
+  q9                String?
+  q10               String?
+  q11               String?
+  q12               String?
+  q13               String?
+  q14               String?
+  q15               String?
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
   roles             ApplicantRole[]
   skills            ApplicantSkill[]
+
   @@map("applicants")
 }
+
 model ApplicantRole {
   applicantId String
   roleId      String
   type        RoleLinkType @default(APPLIED)
-  applicant   Applicant    @relation(fields:[applicantId], references:[id], onDelete:Cascade)
-  role        Role         @relation(fields:[roleId],      references:[id], onDelete:Cascade)
+  applicant   Applicant    @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+  role        Role         @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
   @@id([applicantId, roleId, type])
   @@map("applicant_roles")
 }
+
 model Skill {
   id         String           @id @default(cuid())
   airtableId String?          @unique
@@ -77,17 +97,44 @@ model Skill {
   notes      String?
   createdAt  DateTime         @default(now())
   applicants ApplicantSkill[]
+
   @@map("skills")
 }
+
 model ApplicantSkill {
   applicantId String
   skillId     String
-  applicant   Applicant @relation(fields:[applicantId], references:[id], onDelete:Cascade)
-  skill       Skill     @relation(fields:[skillId],     references:[id], onDelete:Cascade)
+  applicant   Applicant @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+  skill       Skill     @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
   @@id([applicantId, skillId])
   @@map("applicant_skills")
 }
-enum RoleStatus   { OPEN ON_HOLD FILLED CLOSED }
-enum Priority     { HIGH MEDIUM LOW }
-enum Stage        { NEW SCREENING INTERVIEW OFFER HIRED REJECTED ON_HOLD }
-enum RoleLinkType { APPLIED CAPABLE }
+
+enum RoleStatus {
+  OPEN
+  ON_HOLD
+  FILLED
+  CLOSED
+}
+
+enum Priority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum Stage {
+  NEW
+  SCREENING
+  INTERVIEW
+  OFFER
+  HIRED
+  REJECTED
+  ON_HOLD
+}
+
+enum RoleLinkType {
+  APPLIED
+  CAPABLE
+}
