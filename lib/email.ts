@@ -15,7 +15,7 @@ export async function sendApplicationNotification(a: any) {
     await resend.emails.send({
       from:    'PeopleBook <onboarding@resend.dev>',
       to:      NOTIFY,
-      replyTo: 'anthony@runbusiness.com',
+      reply_to: 'anthony@runbusiness.com',
       subject: `New Application — ${a.fullName} (${a.roleTitle || 'General Application'})`,
       html: `
 <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
@@ -91,7 +91,7 @@ export async function sendApplicationNotification(a: any) {
       await resend.emails.send({
         from:    'PeopleBook <onboarding@resend.dev>',
         to:      [a.email],
-        replyTo: 'anthony@runbusiness.com',
+        reply_to: 'anthony@runbusiness.com',
         subject: `Application Received — ${a.fullName}`,
         html: `
 <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto">
