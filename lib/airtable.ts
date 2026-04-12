@@ -21,7 +21,6 @@ export async function getRoles() {
   }))
 }
 
-// Map source values to exact Airtable option names
 function mapSource(source?: string): string {
   const map: Record<string, string> = {
     'Walk-in':           'Walk-In',
@@ -41,22 +40,38 @@ function mapSource(source?: string): string {
 export async function createApplicantInAirtable(a: any) {
   try {
     console.log('Syncing to Airtable:', a.fullName, '| Source:', a.source)
+
     await base(process.env.AIRTABLE_APPLICANTS_TABLE!).create({
-      'Full Name':                                             a.fullName       ?? '',
-      'Email':                                                 a.email          ?? '',
-      'Phone':                                                 a.phone          ?? '',
-      'Stage':                                                 'New',
-      'Date Applied':                                          new Date().toISOString().split('T')[0],
-      'Source':                                                mapSource(a.source),
-      'City / Location':                                       a.cityLocation   ?? '',
-      'Visa / Work Authorization':                             a.workAuthorization ?? '',
-      'Shift Preference':                                      a.shiftPreference ? [a.shiftPreference] : [],
-      'Q1 — Tell Us Your Story':                               a.q1  ?? '',
-      'Q2 — What Does Punctuality Mean to You?':               a.q2  ?? '',
-      'Q3 — How Do You Manage Competing Priorities?':          a.q3  ?? '',
-      'Q8 — What Does Quality Work Mean to You?':              a.q8  ?? '',
-      "Q15 — What Should We Know That's Not on Your Resume?":  a.q15 ?? '',
-    })
+      // Full Name (primary)
+      'flde9vGp44KhjGEVp': a.fullName       ?? '',
+      // Email
+      'fldUADnCVHXY9qNzG': a.email          ?? '',
+      // Phone
+      'fld3bI1wz5aDVizU6': a.phone          ?? '',
+      // Stage
+      'fldbfpZicElq5uJyt': 'New',
+      // Date Applied
+      'fldAfdexZklgVAO4U': new Date().toISOString().split('T')[0],
+      // Source
+      'fldSvWaKfte3ML6Se': mapSource(a.source),
+      // City / Location
+      'fldvwFYuDoZnibiSe': a.cityLocation   ?? '',
+      // Visa / Work Authorization
+      'fld0Vf3zwR88Xm5XX': a.workAuthorization ?? '',
+      // Shift Preference (multipleSelects)
+      'flddZIBprKLaG9yZM': a.shiftPreference ? [a.shiftPreference] : [],
+      // Q1 — Tell Us Your Story
+      'fldbiTW4HxULW6PwN': a.q1  ?? '',
+      // Q2 — What Does Punctuality Mean to You?
+      'fld3RpTCPyqib1I18': a.q2  ?? '',
+      // Q3 — How Do You Manage Competing Priorities?
+      'fldKGGBUcUPOgGP5B': a.q3  ?? '',
+      // Q8 — What Does Quality Work Mean to You?
+      'fldbjGxg6IcIGjYQR': a.q8  ?? '',
+      // Q15 — What Should We Know That's Not on Your Resume?
+      'fld3mfhRBAq9JVuDg': a.q15 ?? '',
+    }, { typecast: true })
+
     console.log('✅ Airtable sync success:', a.fullName)
   } catch (e) {
     console.error('Airtable sync error:', e)
