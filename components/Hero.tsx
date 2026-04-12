@@ -6,6 +6,13 @@ export default function Hero({ roles }: { roles: any[] }) {
   return (
     <section className="bg-navy-900 py-20 px-4 text-center relative overflow-hidden">
       <div className="relative max-w-3xl mx-auto">
+        <div className="flex justify-center mb-3">
+  <img
+    src="/raylandlogo.png"
+    alt="Ray Land Inc."
+    style={{ height:'56px', width:'auto', filter:'brightness(0) invert(1)' }}
+  />
+</div>
         <span className="inline-block border border-red-800 text-red-400 text-xs tracking-widest uppercase px-4 py-1 rounded-full mb-6">
           Now Hiring — Ray Land Inc.
         </span>
