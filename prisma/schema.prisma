@@ -1,0 +1,93 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+model Role {
+  id             String          @id @default(cuid())
+  airtableId     String?         @unique
+  title          String
+  department     String
+  status         RoleStatus      @default(OPEN)
+  priority       Priority        @default(MEDIUM)
+  employmentType String?
+  dateOpened     DateTime?
+  dateFilled     DateTime?
+  notes          String?
+  shift          String?
+  hours          String?
+  openings       Int             @default(1)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  applicants     ApplicantRole[]
+  @@map("roles")
+}
+model Applicant {
+  id                String           @id @default(cuid())
+  airtableId        String?          @unique
+  fullName          String
+  email             String?
+  phone             String?
+  stage             Stage            @default(NEW)
+  cityLocation      String?
+  linkedinUrl       String?
+  availabilityDate  DateTime?
+  salaryExpectation Float?
+  source            String?
+  yearsExperience   Int?
+  highestEducation  String?
+  workAuthorization String?
+  shiftPreference   String?
+  referredBy        String?
+  internalRating    String?
+  interviewScore    Int?
+  applicationScore  Int?
+  offerExtended     Boolean          @default(false)
+  offerAccepted     Boolean          @default(false)
+  doNotContact      Boolean          @default(false)
+  interviewDate     DateTime?
+  lastContacted     DateTime?
+  dateApplied       DateTime?
+  notes             String?
+  q1  String? q2  String? q3  String? q4  String? q5  String?
+  q6  String? q7  String? q8  String? q9  String? q10 String?
+  q11 String? q12 String? q13 String? q14 String? q15 String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  roles             ApplicantRole[]
+  skills            ApplicantSkill[]
+  @@map("applicants")
+}
+model ApplicantRole {
+  applicantId String
+  roleId      String
+  type        RoleLinkType @default(APPLIED)
+  applicant   Applicant    @relation(fields:[applicantId], references:[id], onDelete:Cascade)
+  role        Role         @relation(fields:[roleId],      references:[id], onDelete:Cascade)
+  @@id([applicantId, roleId, type])
+  @@map("applicant_roles")
+}
+model Skill {
+  id         String           @id @default(cuid())
+  airtableId String?          @unique
+  name       String           @unique
+  category   String?
+  notes      String?
+  createdAt  DateTime         @default(now())
+  applicants ApplicantSkill[]
+  @@map("skills")
+}
+model ApplicantSkill {
+  applicantId String
+  skillId     String
+  applicant   Applicant @relation(fields:[applicantId], references:[id], onDelete:Cascade)
+  skill       Skill     @relation(fields:[skillId],     references:[id], onDelete:Cascade)
+  @@id([applicantId, skillId])
+  @@map("applicant_skills")
+}
+enum RoleStatus   { OPEN ON_HOLD FILLED CLOSED }
+enum Priority     { HIGH MEDIUM LOW }
+enum Stage        { NEW SCREENING INTERVIEW OFFER HIRED REJECTED ON_HOLD }
+enum RoleLinkType { APPLIED CAPABLE }
