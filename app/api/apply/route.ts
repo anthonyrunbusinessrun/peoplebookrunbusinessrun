@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic' // email integration active
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { createApplicantInAirtable } from '@/lib/airtable'
