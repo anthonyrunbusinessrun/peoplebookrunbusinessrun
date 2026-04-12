@@ -5,22 +5,14 @@ export default function Hero({ roles }: { roles: any[] }) {
   const urgent = roles.filter(r => r.status === 'Open' && r.priority === 'High').length
   return (
     <section className="bg-navy-900 py-20 px-4 text-center relative overflow-hidden">
-      <div className="relative max-w-3xl mx-auto">
-        <div className="flex justify-center mb-3">
-  <img
-    src="/raylandlogo.png"
-    alt="Ray Land Inc."
-    style={{ height:'56px', width:'auto', filter:'brightness(0) invert(1)' }}
-  />
-</div>
         <span className="inline-block border border-red-800 text-red-400 text-xs tracking-widest uppercase px-4 py-1 rounded-full mb-6">
           Now Hiring — Ray Land Inc.
         </span>
         <h1 className="text-5xl font-serif text-white mb-4 leading-tight">
-          Join the Team.<br/>Drive <span className="text-yellow-400">Excellence</span> Forward.
+          Join the Team.<br/>Stable engineering // Design Innovation //  Perpetual service
         </h1>
         <p className="text-gray-400 text-lg mb-10 max-w-xl mx-auto">
-          Building the most professional transportation operation in the region.
+          At Ray Land, Inc we are passionate about excellent service & consistently exceeding our customer’s expectations. With our goal in heart, we are challenged with performing better today than we did yesterday, meeting our demanding schedule requirements on time, to provide our clients with satisfaction they deserve. We blend technology, equipment and people in impassioned efficiency & organization. 
         </p>
         <div className="flex justify-center gap-12 mb-10">
           {[{n:open,l:'Open Roles'},{n:depts,l:'Departments'},{n:urgent,l:'Urgent Hires'}].map(s => (
