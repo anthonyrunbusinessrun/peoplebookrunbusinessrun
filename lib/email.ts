@@ -2,12 +2,7 @@ import { Resend } from 'resend'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
-const NOTIFY = [
-  'anthony@runbusiness.com',
-  'ereika@runbusiness.com',
-  'ray@rayland.com',
-  'kaye@runbusiness.com',
-]
+const NOTIFY = ['anthony@runbusiness.com']
 
 export async function sendApplicationNotification(a: any) {
   console.log('=== EMAIL NOTIFICATION START ===')
