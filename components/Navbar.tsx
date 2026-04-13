@@ -1,14 +1,13 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 export default function Navbar() {
   const [open, setOpen] = useState(false)
   return (
     <nav className="bg-navy-900 border-b-2 border-crimson-500 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 flex items-center justify-between h-16">
         <Link href="/" className="flex items-center gap-3">
-          <Image src="/raylandlogo.png" alt="Ray Land Inc." width={40} height={40} className="rounded-full object-contain" />
+          <div className="w-9 h-9 rounded-full bg-crimson-500 flex items-center justify-center font-bold text-white text-sm">RL</div>
           <span className="text-white font-serif text-lg">Ray Land <span className="text-yellow-400">PeopleBook</span></span>
         </Link>
       {open && (
