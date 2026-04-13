@@ -6,14 +6,11 @@ export default function Footer() {
       <div className="flex justify-center mb-4">
         <Image src="/raylandlogo.png" alt="Ray Land Inc." width={80} height={80} className="object-contain" />
       </div>
-      <p className="text-gray-500 text-xs tracking-widest uppercase mb-6">
+      <p className="text-gray-300 text-xs tracking-widest uppercase mb-6">
         Stable engineering // Design Innovation // Perpetual service
       </p>
       <div className="flex justify-center gap-8 text-gray-500 text-sm mb-6">
         <a href="https://rayland.com" className="hover:text-yellow-400 transition-colors">rayland.com</a>
-        <a href="#" className="hover:text-yellow-400 transition-colors">Privacy Policy</a>
-        <a href="#" className="hover:text-yellow-400 transition-colors">Equal Opportunity Employer</a>
-        <a href="#" className="hover:text-yellow-400 transition-colors">Contact HR</a>
       </div>
       <p className="text-gray-600 text-xs">
         2026 Ray Land Inc. PeopleBook Recruiting Portal. Powered by BOSS.
