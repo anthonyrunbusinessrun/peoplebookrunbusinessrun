@@ -16,12 +16,12 @@ export default function Hero({ roles = [] }: { roles?: Role[] }) {
   return (
     <section className="bg-navy-900 py-20 px-4 text-center relative overflow-hidden">
       <span className="inline-block border border-red-800 text-red-400 text-xs tracking-widest uppercase px-4 py-1 rounded-full mb-6">
-        Now Hiring — Ray Land Inc.
+        Now Hiring — BOSS.
       </span>
 
       <h1 className="text-5xl font-serif text-white mb-4 leading-tight">
         Join the Team.<br />
-        <span className="text-white-400">Stable engineering // Design Innovation // Perpetual service</span> Forward.
+        <span className="text-red-100">Stable engineering // Design Innovation // Perpetual service</span>
       </h1>
 
       <p className="text-gray-400 text-lg mb-10 max-w-xl mx-auto">
