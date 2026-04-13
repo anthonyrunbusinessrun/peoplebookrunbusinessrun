@@ -1,14 +1,23 @@
+import Image from 'next/image'
+
 export default function Footer() {
   return (
-    <footer className="bg-navy-900 border-t-2 border-crimson-500 py-12 px-4 text-center">
-      <div className="text-yellow-400 font-serif text-xl tracking-widest mb-2">RAY LAND INC.</div>
-      <div className="text-gray-500 text-sm mb-6">Stable engineering // Design Innovation // Perpetual service</div>
-      <div className="flex justify-center gap-8 mb-6 flex-wrap">
-        {['rayland.com','Privacy Policy','Equal Opportunity Employer','Contact HR'].map(l => (
-          <a key={l} href="#" className="text-gray-500 hover:text-yellow-400 text-xs transition-colors">{l}</a>
-        ))}
+    <footer className="bg-navy-900 border-t border-navy-800 py-12 px-4 text-center">
+      <div className="flex justify-center mb-4">
+        <Image src="/raylandlogo.png" alt="Ray Land Inc." width={80} height={80} className="object-contain" />
       </div>
-      <p className="text-gray-600 text-xs">2026 Ray Land Inc. PeopleBook Recruiting Portal. Powered by BOSS.</p>
+      <p className="text-gray-500 text-xs tracking-widest uppercase mb-6">
+        Stable engineering // Design Innovation // Perpetual service
+      </p>
+      <div className="flex justify-center gap-8 text-gray-500 text-sm mb-6">
+        <a href="https://rayland.com" className="hover:text-yellow-400 transition-colors">rayland.com</a>
+        <a href="#" className="hover:text-yellow-400 transition-colors">Privacy Policy</a>
+        <a href="#" className="hover:text-yellow-400 transition-colors">Equal Opportunity Employer</a>
+        <a href="#" className="hover:text-yellow-400 transition-colors">Contact HR</a>
+      </div>
+      <p className="text-gray-600 text-xs">
+        2026 Ray Land Inc. PeopleBook Recruiting Portal. Powered by BOSS.
+      </p>
     </footer>
   )
 }
