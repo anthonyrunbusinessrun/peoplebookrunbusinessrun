@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 
 type Role = {
   status?: string
@@ -15,20 +16,21 @@ export default function Hero({ roles = [] }: { roles?: Role[] }) {
 
   return (
     <section className="bg-navy-900 py-20 px-4 text-center relative overflow-hidden">
+      <div className="flex justify-center mb-8">
+        <Image src="/raylandlogo.png" alt="Ray Land Inc." width={120} height={120} className="object-contain" />
+      </div>
+
       <span className="inline-block border border-red-800 text-red-400 text-xs tracking-widest uppercase px-4 py-1 rounded-full mb-6">
         Now Hiring — Ray Land Inc.
       </span>
 
       <h1 className="text-5xl font-serif text-white mb-4 leading-tight">
         Join the Team.<br />
-        Stable engineering // Design Innovation // Perpetual service
+        Drive <span className="text-yellow-400">Excellence</span> Forward.
       </h1>
 
       <p className="text-gray-400 text-lg mb-10 max-w-xl mx-auto">
-        At Ray Land, Inc we are passionate about excellent service & consistently exceeding our customer’s expectations.
-        With our goal in heart, we are challenged with performing better today than we did yesterday, meeting our demanding
-        schedule requirements on time, to provide our clients with satisfaction they deserve. We blend technology,
-        equipment and people in impassioned efficiency & organization.
+        Building the most professional transportation operation in the region.
       </p>
 
       <div className="flex justify-center gap-12 mb-10">
