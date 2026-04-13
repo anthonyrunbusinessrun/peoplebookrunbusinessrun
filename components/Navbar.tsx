@@ -1,6 +1,7 @@
 'use client'
-import { useState } from 'react'
+import React, { useState } from 'react'
 import Link from 'next/link'
+
 export default function Navbar() {
   const [open, setOpen] = useState(false)
   return (
@@ -10,12 +11,13 @@ export default function Navbar() {
           <div className="w-9 h-9 rounded-full bg-crimson-500 flex items-center justify-center font-bold text-white text-sm">RL</div>
           <span className="text-white font-serif text-lg">Ray Land <span className="text-yellow-400">PeopleBook</span></span>
         </Link>
-      {open && (
-        <div className="md:hidden bg-navy-900 px-4 pb-4 flex flex-col gap-3 border-t border-navy-800">
-          <Link href="/" className="text-gray-400 text-sm pt-3">All Roles</Link>
-          <Link href="/apply" className="bg-crimson-500 text-white text-sm font-bold px-4 py-2 rounded-lg text-center">Apply Now</Link>
-        </div>
-      )}
+        {open && (
+          <div className="md:hidden bg-navy-900 px-4 pb-4 flex flex-col gap-3 border-t border-navy-800">
+            <Link href="/" className="text-gray-400 text-sm pt-3">All Roles</Link>
+            <Link href="/apply" className="bg-crimson-500 text-white text-sm font-bold px-4 py-2 rounded-lg text-center">Apply Now</Link>
+          </div>
+        )}
+      </div>
     </nav>
   )
 }
