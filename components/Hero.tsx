@@ -25,7 +25,7 @@ export default function Hero({ roles = [] }: { roles?: Role[] }) {
       </h1>
 
       <p className="text-gray-400 text-lg mb-10 max-w-xl mx-auto">
-        Building the most professional transportation operation in the region.
+        Built on the belief that every great operating system begins with people, not technology, not process. People.
       </p>
 
       <div className="flex justify-center gap-12 mb-10">
