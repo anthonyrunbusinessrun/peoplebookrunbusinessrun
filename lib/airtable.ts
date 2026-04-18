@@ -41,36 +41,32 @@ export async function createApplicantInAirtable(a: any) {
   try {
     console.log('Syncing to Airtable:', a.fullName, '| Source:', a.source)
 
-    await base(process.env.AIRTABLE_APPLICANTS_TABLE!).create({
-      // Full Name (primary)
-      'flde9vGp44KhjGEVp': a.fullName       ?? '',
-      // Email
-      'fldUADnCVHXY9qNzG': a.email          ?? '',
-      // Phone
-      'fld3bI1wz5aDVizU6': a.phone          ?? '',
-      // Stage
-      'fldbfpZicElq5uJyt': 'New',
-      // Date Applied
-      'fldAfdexZklgVAO4U': new Date().toISOString().split('T')[0],
-      // Source
-      'fldSvWaKfte3ML6Se': mapSource(a.source),
-      // City / Location
-      'fldvwFYuDoZnibiSe': a.cityLocation   ?? '',
-      // Visa / Work Authorization
-      'fld0Vf3zwR88Xm5XX': a.workAuthorization ?? '',
-      // Shift Preference (multipleSelects)
-      'flddZIBprKLaG9yZM': a.shiftPreference ? [a.shiftPreference] : [],
-      // Q1 — Tell Us Your Story
-      'fldbiTW4HxULW6PwN': a.q1  ?? '',
-      // Q2 — What Does Punctuality Mean to You?
-      'fld3RpTCPyqib1I18': a.q2  ?? '',
-      // Q3 — How Do You Manage Competing Priorities?
-      'fldKGGBUcUPOgGP5B': a.q3  ?? '',
-      // Q8 — What Does Quality Work Mean to You?
-      'fldbjGxg6IcIGjYQR': a.q8  ?? '',
-      // Q15 — What Should We Know That's Not on Your Resume?
-      'fld3mfhRBAq9JVuDg': a.q15 ?? '',
-    }, { typecast: true })
+    // Build the fields object
+    const fields: Record<string, any> = {
+      'flde9vGp44KhjGEVp': a.fullName       ?? '',  // Full Name
+      'fldUADnCVHXY9qNzG': a.email          ?? '',  // Email
+      'fld3bI1wz5aDVizU6': a.phone          ?? '',  // Phone
+      'fldbfpZicElq5uJyt': 'New',                    // Stage
+      'fldAfdexZklgVAO4U': new Date().toISOString().split('T')[0], // Date Applied
+      'fldSvWaKfte3ML6Se': mapSource(a.source),      // Source
+      'fldvwFYuDoZnibiSe': a.cityLocation    ?? '',  // City
+      'fld0Vf3zwR88Xm5XX': a.workAuthorization ?? '', // Work Auth
+      'flddZIBprKLaG9yZM': a.shiftPreference ? [a.shiftPreference] : [], // Shift
+      'fldbiTW4HxULW6PwN': a.q1  ?? '',  // Q1
+      'fld3RpTCPyqib1I18': a.q2  ?? '',  // Q2
+      'fldKGGBUcUPOgGP5B': a.q3  ?? '',  // Q3
+      'fldbjGxg6IcIGjYQR': a.q8  ?? '',  // Q8
+      'fld3mfhRBAq9JVuDg': a.q15 ?? '',  // Q15
+    }
+
+    // Attach resume to the Resume field (fldVvojhsidRjJDDk) if provided
+    // Airtable accepts attachments via URL — we use a data URI for base64
+    if (a.resumeData?.base64) {
+      const dataUri = `data:${a.resumeData.type};base64,${a.resumeData.base64}`
+      fields['fldVvojhsidRjJDDk'] = [{ url: dataUri, filename: a.resumeData.name }]
+    }
+
+    await base(process.env.AIRTABLE_APPLICANTS_TABLE!).create(fields, { typecast: true })
 
     console.log('✅ Airtable sync success:', a.fullName)
   } catch (e) {

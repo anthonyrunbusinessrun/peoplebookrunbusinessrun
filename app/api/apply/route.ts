@@ -1,72 +1,77 @@
 import { NextRequest, NextResponse } from 'next/server'
-export const dynamic = 'force-dynamic' // email integration active
-import { z } from 'zod'
+export const dynamic = 'force-dynamic'
 import { prisma } from '@/lib/prisma'
 import { createApplicantInAirtable } from '@/lib/airtable'
 import { sendApplicationNotification } from '@/lib/email'
 
-const Schema = z.object({
-  fullName:          z.string().min(2),
-  email:             z.string().email(),
-  phone:             z.string().optional(),
-  roleTitle:         z.string().optional(),
-  cityLocation:      z.string().optional(),
-  availabilityDate:  z.string().optional(),
-  salaryExpectation: z.string().optional(),
-  workAuthorization: z.string().optional(),
-  shiftPreference:   z.string().optional(),
-  source:            z.string().optional(),
-  q1:  z.string().optional(),
-  q2:  z.string().optional(),
-  q3:  z.string().optional(),
-  q5:  z.string().optional(),
-  q8:  z.string().optional(),
-  q15: z.string().optional(),
-})
-
 export async function POST(req: NextRequest) {
   try {
-    const data = Schema.parse(await req.json())
+    const formData = await req.formData()
+    const get = (k: string) => (formData.get(k) as string) || ''
+
+    const fullName = get('fullName').trim()
+    const email    = get('email').trim()
+
+    if (!fullName || fullName.length < 2)
+      return NextResponse.json({ error: 'Full name is required' }, { status: 400 })
+    if (!email || !email.includes('@'))
+      return NextResponse.json({ error: 'Valid email is required' }, { status: 400 })
+
+    // Handle resume file
+    const resumeFile = formData.get('resume') as File | null
+    let resumeData: { name: string; base64: string; type: string; url?: string } | null = null
+
+    if (resumeFile && resumeFile.size > 0) {
+      const buffer = await resumeFile.arrayBuffer()
+      const base64 = Buffer.from(buffer).toString('base64')
+      resumeData = {
+        name:   resumeFile.name,
+        base64,
+        type:   resumeFile.type || 'application/pdf',
+      }
+    }
 
     // 1. Save to PostgreSQL
     const applicant = await prisma.applicant.create({
       data: {
-        fullName:          data.fullName,
-        email:             data.email,
-        phone:             data.phone,
+        fullName,
+        email,
+        phone:             get('phone')            || null,
         stage:             'NEW',
-        cityLocation:      data.cityLocation,
-        availabilityDate:  data.availabilityDate ? new Date(data.availabilityDate) : null,
-        salaryExpectation: data.salaryExpectation
-          ? parseFloat(data.salaryExpectation.replace(/[^0-9.]/g, '')) : null,
-        workAuthorization: data.workAuthorization,
-        shiftPreference:   data.shiftPreference,
-        source:            data.source,
+        cityLocation:      get('cityLocation')      || null,
+        workAuthorization: get('workAuthorization') || null,
+        shiftPreference:   get('shiftPreference')   || null,
+        source:            get('source')            || null,
         dateApplied:       new Date(),
-        q1:  data.q1,
-        q2:  data.q2,
-        q3:  data.q3,
-        q5:  data.q5,
-        q8:  data.q8,
-        q15: data.q15,
+        q1:  get('q1')  || null,
+        q2:  get('q2')  || null,
+        q3:  get('q3')  || null,
+        q8:  get('q8')  || null,
+        q15: get('q15') || null,
       },
     })
 
-    // 2. Sync to Airtable
+    // 2. Sync to Airtable (including resume attachment)
     try {
-      await createApplicantInAirtable({ ...applicant, roleTitle: data.roleTitle })
+      await createApplicantInAirtable({
+        ...applicant,
+        roleTitle:  get('roleTitle'),
+        resumeData,
+      })
     } catch (e) {
       console.error('Airtable sync error:', e)
     }
 
-    // 3. Send email notifications to 4 recruiters + applicant confirmation
-    await sendApplicationNotification({ ...applicant, roleTitle: data.roleTitle })
+    // 3. Send email notifications with resume attached
+    await sendApplicationNotification({
+      ...applicant,
+      roleTitle:  get('roleTitle'),
+      resumeData,
+    })
 
     return NextResponse.json({ success: true, id: applicant.id }, { status: 201 })
 
   } catch (e) {
-    if (e instanceof z.ZodError)
-      return NextResponse.json({ error: 'Validation failed', details: e.errors }, { status: 400 })
     console.error('Apply error:', e)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
