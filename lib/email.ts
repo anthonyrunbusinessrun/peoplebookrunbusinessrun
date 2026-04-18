@@ -114,7 +114,7 @@ export async function sendApplicationNotification(a: any) {
 
     // Notify all recruiters
     await resend.emails.send({
-      from:        'PeopleBook <onboarding@resend.dev>',
+      from:        'PeopleBook <noreply@runbusiness.com>',
       to:          NOTIFY,
       subject:     `New Application — ${fullName} (${roleTitle || 'General'})`,
       html:        recruiterHtml,
@@ -124,7 +124,7 @@ export async function sendApplicationNotification(a: any) {
     // Confirm to applicant
     if (email) {
       await resend.emails.send({
-        from:    'PeopleBook <onboarding@resend.dev>',
+        from:    'PeopleBook <noreply@runbusiness.com>',
         to:      [email],
         subject: `Application Received — ${fullName}`,
         html:    applicantHtml,
