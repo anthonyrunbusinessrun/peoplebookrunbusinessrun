@@ -29,22 +29,30 @@ export default function Navbar() {
         .rl-logo-name { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:20px; color:#1a2540; letter-spacing:0.05em; text-transform:uppercase; line-height:1.1; }
         .rl-logo-name span { color:#b70000; }
         .rl-logo-sub { font-family:'Rajdhani',sans-serif; font-size:8px; font-weight:600; color:#8299c0; letter-spacing:0.26em; text-transform:uppercase; }
+
+        /* Stripe image + hamburger share one block — no black bg */
         .rl-nav-right {
           display: flex;
           align-items: stretch;
           flex-shrink: 0;
+          position: relative;
         }
         .rl-stripe-block {
-          width: 220px;
+          width: 200px;
           height: 72px;
           background-image: url('/nav-stripes.png');
           background-size: cover;
           background-position: left center;
           flex-shrink: 0;
         }
+        /* Hamburger sits ON TOP of the stripe — no separate bg */
         .rl-hamburger-btn {
+          position: absolute;
+          right: 0;
+          top: 0;
           width: 58px;
-          background: #111;
+          height: 72px;
+          background: transparent;
           border: none;
           cursor: pointer;
           display: flex;
@@ -52,14 +60,15 @@ export default function Navbar() {
           justify-content: center;
           flex-direction: column;
           gap: 5px;
-          flex-shrink: 0;
           padding: 0;
         }
         .rl-ham-line { display:block; width:22px; height:2px; background:#fff; transition:all 0.2s; border-radius:1px; }
+
+        /* Dropdown */
         .rl-dropdown {
           background: #1a2540;
           border-top: 3px solid #b70000;
-          padding: 20px 28px 24px;
+          padding: 8px 0 8px;
           display: flex;
           flex-direction: column;
           box-shadow: 0 8px 24px rgba(5,9,49,0.3);
@@ -72,26 +81,13 @@ export default function Navbar() {
           letter-spacing: 0.16em;
           color: rgba(255,255,255,0.75);
           text-decoration: none;
-          padding: 14px 0;
+          padding: 16px 28px;
           border-bottom: 1px solid rgba(255,255,255,0.07);
           transition: color 0.15s;
-        }
-        .rl-dropdown-link:hover { color:#e8c96b; }
-        .rl-dropdown-cta {
-          margin-top: 16px;
-          font-family: 'Rajdhani',sans-serif;
-          font-size: 13px;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 0.18em;
-          color: #fff;
-          background: #b70000;
-          padding: 12px 24px;
-          text-decoration: none;
-          text-align: center;
           display: block;
         }
-        .rl-dropdown-cta:hover { background:#991020; }
+        .rl-dropdown-link:last-child { border-bottom: none; }
+        .rl-dropdown-link:hover { color:#e8c96b; }
       `}</style>
 
       <div className="rl-nav-wrap">
@@ -109,7 +105,7 @@ export default function Navbar() {
             </Link>
           </div>
 
-          {/* Right end: stripe image + hamburger */}
+          {/* Stripe image + hamburger overlaid on it */}
           <div className="rl-nav-right">
             <div className="rl-stripe-block" />
             <button className="rl-hamburger-btn" onClick={() => setOpen(!open)} aria-label="Menu">
@@ -120,13 +116,12 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* Dropdown menu */}
+        {/* Dropdown — links only, no CTA button */}
         {open && (
           <div className="rl-dropdown">
             <a href="/" className="rl-dropdown-link" onClick={() => setOpen(false)}>Roles</a>
             <a href="/apply" className="rl-dropdown-link" onClick={() => setOpen(false)}>Apply</a>
             <a href="https://rayland.com" target="_blank" rel="noopener noreferrer" className="rl-dropdown-link">rayland.com</a>
-            <Link href="/apply" className="rl-dropdown-cta" onClick={() => setOpen(false)}>Apply Now →</Link>
           </div>
         )}
       </div>
