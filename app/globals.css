@@ -1,12 +1,126 @@
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Lato:wght@300;400;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-@layer base { html { scroll-behavior: smooth; } }
+
+@layer base {
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Rajdhani', sans-serif;
+    background-color: #f5f4f0;
+    color: #212c42;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+}
+
 @layer components {
-  .btn-primary   { @apply bg-crimson-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-crimson-600 transition-colors tracking-wide; }
-  .btn-secondary { @apply bg-navy-900 text-yellow-400 font-bold py-3 px-6 rounded-lg hover:bg-navy-800 transition-colors tracking-wide; }
-  .card          { @apply bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer; }
-  .badge-open    { @apply bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full; }
-  .badge-filled  { @apply bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded-full; }
-  .badge-onhold  { @apply bg-yellow-100 text-yellow-700 text-xs font-bold px-2 py-1 rounded-full; }
+  .btn-primary {
+    display: inline-block;
+    background: #c0152a;
+    color: #fff;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    padding: 12px 32px;
+    border-radius: 0;
+    border: none;
+    transition: background 0.2s;
+    cursor: pointer;
+  }
+  .btn-primary:hover { background: #991020; }
+
+  .btn-secondary {
+    display: inline-block;
+    background: transparent;
+    color: #c0152a;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    padding: 11px 32px;
+    border-radius: 0;
+    border: 1px solid #c0152a;
+    transition: all 0.2s;
+    cursor: pointer;
+  }
+  .btn-secondary:hover { background: #c0152a; color: #fff; }
+
+  .btn-ghost {
+    display: inline-block;
+    background: transparent;
+    color: #fff;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    padding: 11px 32px;
+    border-radius: 0;
+    border: 1px solid rgba(255,255,255,0.4);
+    transition: all 0.2s;
+    cursor: pointer;
+  }
+  .btn-ghost:hover { border-color: #fff; background: rgba(255,255,255,0.08); }
+
+  .card {
+    background: #fff;
+    border-left: 3px solid #c0152a;
+    border-top: none;
+    border-right: none;
+    border-bottom: 1px solid #e5e4e0;
+    border-radius: 0;
+    transition: all 0.2s;
+    cursor: pointer;
+  }
+  .card:hover {
+    border-left-color: #050931;
+    box-shadow: 4px 0 0 0 #050931, 0 6px 20px rgba(5,9,49,0.08);
+  }
+
+  .badge-open    { display:inline-block; background:#dcfce7; color:#166534; font-family:'Rajdhani',sans-serif; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; padding:2px 8px; border-radius:0; }
+  .badge-filled  { display:inline-block; background:#0a1628; color:#fff;    font-family:'Rajdhani',sans-serif; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; padding:2px 8px; border-radius:0; }
+  .badge-onhold  { display:inline-block; background:#fef9c3; color:#854d0e; font-family:'Rajdhani',sans-serif; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; padding:2px 8px; border-radius:0; }
+  .badge-urgent  { display:inline-block; background:#c0152a; color:#fff;    font-family:'Rajdhani',sans-serif; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; padding:2px 8px; border-radius:0; }
+
+  .eyebrow {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.25em;
+    color: #8299c0;
+  }
+
+  .rl-stripe {
+    width: 6px;
+    flex-shrink: 0;
+    background: linear-gradient(172deg, #7e0606, #b70000 32%, #810000 69%, #830000);
+  }
+
+  .filter-pill {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 6px 16px;
+    border-radius: 0;
+    border: 1px solid #d1d0cb;
+    background: #fff;
+    color: #505e78;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .filter-pill:hover { border-color: #c0152a; color: #c0152a; }
+  .filter-pill-active { background: #0a1628 !important; color: #e8c96b !important; border-color: #0a1628 !important; }
+  .filter-pill-red    { background: #c0152a !important; color: #fff !important;    border-color: #c0152a !important; }
 }
