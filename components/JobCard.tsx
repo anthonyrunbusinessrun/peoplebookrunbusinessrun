@@ -5,7 +5,7 @@ export default function JobCard({ role, onClick }: { role: any; onClick: () => v
   const isUrgent = role.priority === 'High'
 
   return (
-    <div onClick={onClick} className="card rl-job-card" style={{ padding: '24px 24px 20px', borderLeftColor: isUrgent ? '#c0152a' : '#d1d0cb' }}>
+    <div onClick={onClick} className="card rl-job-card" style={{ padding: '24px 24px 20px', borderLeftColor: isUrgent ? '#c0152a' : '#d1d0cb', width: '100%', display: 'flex', flexDirection: 'column' }}>
       <style>{`
         .rl-job-card { transition: all 0.2s; }
         .rl-job-card:hover { border-left-color: #050931 !important; box-shadow: 4px 0 0 0 #050931, 0 6px 20px rgba(5,9,49,0.08); }
@@ -25,7 +25,7 @@ export default function JobCard({ role, onClick }: { role: any; onClick: () => v
       <h3 className="rl-job-title" style={{ marginBottom: 8 }}>{role.title}</h3>
 
       {/* Description */}
-      <p style={{ fontFamily: "'Rajdhani',sans-serif", fontSize: 13, color: '#505e78', lineHeight: 1.6, marginBottom: 16, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden' }}>
+      <p style={{ fontFamily: "'Rajdhani',sans-serif", fontSize: 13, color: '#505e78', lineHeight: 1.6, marginBottom: 16, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden', flex: 1 }}>
         {role.notes}
       </p>
 
