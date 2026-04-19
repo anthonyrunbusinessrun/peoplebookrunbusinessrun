@@ -11,47 +11,49 @@ export default function Navbar() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Lato:wght@300;400;700&display=swap');
         .rl-nav-wrap { position:sticky; top:0; z-index:50; }
+
         .rl-nav-bar {
           height: 72px;
           display: flex;
           align-items: stretch;
-          overflow: hidden;
-          box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+          /* The stripe image sits at the far right — the rest is silver */
           background: radial-gradient(circle at 0% 0%, #ffffff 9%, #d9d9d9 32%, #d9d9d9 68%, #aeaeae 100%);
+          box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+          overflow: hidden;
+          position: relative;
         }
+
+        /* Logo area */
         .rl-nav-logo {
           flex: 1;
           display: flex;
           align-items: center;
           padding: 0 28px;
         }
-        .rl-logo { display:flex; align-items:center; gap:12px; text-decoration:none; }
-        .rl-logo-name { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:20px; color:#1a2540; letter-spacing:0.05em; text-transform:uppercase; line-height:1.1; }
-        .rl-logo-name span { color:#b70000; }
-        .rl-logo-sub { font-family:'Rajdhani',sans-serif; font-size:8px; font-weight:600; color:#8299c0; letter-spacing:0.26em; text-transform:uppercase; }
 
-        /* Stripe image + hamburger share one block — no black bg */
-        .rl-nav-right {
-          display: flex;
-          align-items: stretch;
-          flex-shrink: 0;
+        /* Stripe image — NO separate container, just the image stretched to full height */
+        /* The hamburger is absolutely positioned over the stripe */
+        .rl-nav-end {
           position: relative;
-        }
-        .rl-stripe-block {
-          width: 200px;
-          height: 72px;
-          background-image: url('/nav-stripes.png');
-          background-size: cover;
-          background-position: left center;
           flex-shrink: 0;
+          width: 258px; /* stripe width + hamburger zone */
+          height: 72px;
         }
-        /* Hamburger sits ON TOP of the stripe — no separate bg */
+
+        .rl-stripe-img {
+          position: absolute;
+          top: 0; left: 0;
+          width: 100%; height: 100%;
+          object-fit: cover;
+          object-position: left center;
+          display: block;
+        }
+
+        /* Hamburger — floats over the stripe, no background at all */
         .rl-hamburger-btn {
           position: absolute;
-          right: 0;
-          top: 0;
-          width: 58px;
-          height: 72px;
+          top: 0; right: 0;
+          width: 60px; height: 72px;
           background: transparent;
           border: none;
           cursor: pointer;
@@ -61,17 +63,23 @@ export default function Navbar() {
           flex-direction: column;
           gap: 5px;
           padding: 0;
+          z-index: 2;
         }
-        .rl-ham-line { display:block; width:22px; height:2px; background:#fff; transition:all 0.2s; border-radius:1px; }
+        .rl-ham-line {
+          display: block; width: 22px; height: 2.5px;
+          background: #fff;
+          transition: all 0.2s;
+          border-radius: 1px;
+        }
 
         /* Dropdown */
         .rl-dropdown {
           background: #1a2540;
           border-top: 3px solid #b70000;
-          padding: 8px 0 8px;
+          padding: 8px 0;
           display: flex;
           flex-direction: column;
-          box-shadow: 0 8px 24px rgba(5,9,49,0.3);
+          box-shadow: 0 8px 24px rgba(5,9,49,0.35);
         }
         .rl-dropdown-link {
           font-family: 'Lato', sans-serif;
@@ -83,40 +91,50 @@ export default function Navbar() {
           text-decoration: none;
           padding: 16px 28px;
           border-bottom: 1px solid rgba(255,255,255,0.07);
-          transition: color 0.15s;
           display: block;
+          transition: color 0.15s;
         }
         .rl-dropdown-link:last-child { border-bottom: none; }
-        .rl-dropdown-link:hover { color:#e8c96b; }
+        .rl-dropdown-link:hover { color: #e8c96b; }
       `}</style>
 
       <div className="rl-nav-wrap">
         <div className="rl-nav-bar">
 
-          {/* Logo only on left */}
+          {/* Ray Land script logo */}
           <div className="rl-nav-logo">
-            <Link href="/" className="rl-logo">
-              <Image src="/raylandlogo.png" alt="Ray Land Inc." width={40} height={40}
-                style={{ objectFit:'contain', borderRadius:'50%' }} />
-              <div>
-                <div className="rl-logo-name">People<span>Book</span></div>
-                <div className="rl-logo-sub">Ray Land Inc.</div>
-              </div>
+            <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
+              <Image
+                src="/rayland-logo.png"
+                alt="Ray Land Inc."
+                width={140}
+                height={48}
+                style={{ objectFit: 'contain', objectPosition: 'left center' }}
+              />
             </Link>
           </div>
 
-          {/* Stripe image + hamburger overlaid on it */}
-          <div className="rl-nav-right">
-            <div className="rl-stripe-block" />
-            <button className="rl-hamburger-btn" onClick={() => setOpen(!open)} aria-label="Menu">
-              <span className="rl-ham-line" style={{ transform: open ? 'rotate(45deg) translate(0,7px)' : 'none' }} />
+          {/* Stripe image + hamburger overlaid — no black anywhere */}
+          <div className="rl-nav-end">
+            <Image
+              src="/nav-stripes.png"
+              alt=""
+              fill
+              style={{ objectFit: 'cover', objectPosition: 'left center' }}
+            />
+            <button
+              className="rl-hamburger-btn"
+              onClick={() => setOpen(!open)}
+              aria-label="Menu"
+            >
+              <span className="rl-ham-line" style={{ transform: open ? 'rotate(45deg) translate(0,8px)' : 'none' }} />
               <span className="rl-ham-line" style={{ opacity: open ? 0 : 1 }} />
-              <span className="rl-ham-line" style={{ transform: open ? 'rotate(-45deg) translate(0,-7px)' : 'none' }} />
+              <span className="rl-ham-line" style={{ transform: open ? 'rotate(-45deg) translate(0,-8px)' : 'none' }} />
             </button>
           </div>
         </div>
 
-        {/* Dropdown — links only, no CTA button */}
+        {/* Dropdown */}
         {open && (
           <div className="rl-dropdown">
             <a href="/" className="rl-dropdown-link" onClick={() => setOpen(false)}>Roles</a>
