@@ -24,13 +24,12 @@ export default function Footer() {
             <div style={{ width: 4, alignSelf: 'stretch', background: 'linear-gradient(172deg, #7e0606, #b70000 32%, #810000)', flexShrink: 0 }} />
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                <Image src="/raylandlogo.png" alt="Ray Land Inc." width={48} height={48} style={{ objectFit: 'contain', borderRadius: '50%' }} />
                 <div>
                   <div style={{ fontSize: 22, fontWeight: 700, textTransform: 'uppercase', color: '#fff', letterSpacing: '0.05em', lineHeight: 1.1 }}>
                     People<span style={{ color: '#c0152a' }}>Book</span>
                   </div>
                   <div style={{ fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.25em', color: '#8299c0', marginTop: 2 }}>
-                    Ray Land Inc.
+                    Rayland Inc.
                   </div>
                 </div>
               </div>
@@ -61,7 +60,7 @@ export default function Footer() {
             Stable Engineering // Design Innovation // Perpetual Service
           </p>
           <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.05em' }}>
-            © 2026 Ray Land Inc. · PeopleBook Recruiting Portal · Powered by BOSS
+            © 2026 Rayland Inc. · PeopleBook Recruiting Portal 
           </p>
         </div>
       </div>
