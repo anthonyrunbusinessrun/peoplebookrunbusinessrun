@@ -63,9 +63,6 @@ export default function Hero({ roles = [] }: { roles?: Role[] }) {
           <h1 style={{ fontFamily: "'Rajdhani',sans-serif", fontSize: 'clamp(32px, 5vw, 58px)', fontWeight: 700, textTransform: 'uppercase', color: '#ffffff', lineHeight: 1.05, letterSpacing: '0.03em', marginBottom: 14, maxWidth: 680 }}>
             People<span style={{ color: '#c0152a' }}>Book</span>
             <br />
-            <span style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.55em', letterSpacing: '0.1em' }}>
-              Recruiting Portal
-            </span>
           </h1>
 
           {/* Tagline */}
@@ -76,7 +73,7 @@ export default function Hero({ roles = [] }: { roles?: Role[] }) {
             <span style={{ color: '#c0152a', fontWeight: 700 }}>//</span>
             &nbsp;Perpetual Service
           </p>
-          <p style={{ fontFamily: "'Rajdhani',sans-serif", fontSize: 14, color: 'rgba(255,255,255,0.38)', marginBottom: 44, maxWidth: 480, lineHeight: 1.65 }}>
+          <p style={{ fontFamily: "'Rajdhani',sans-serif", fontSize: 18, color: 'rgba(255,255,255,0.38)', marginBottom: 44, maxWidth: 480, lineHeight: 1.65 }}>
             Every great operating system begins with people — not technology, not process. People.
           </p>
 
