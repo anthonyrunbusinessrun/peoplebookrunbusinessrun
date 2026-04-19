@@ -8,6 +8,11 @@ export default function Footer() {
       position: 'relative',
       overflow: 'hidden',
     }}>
+      <style>{`
+        .rl-footer-link { font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:0.1em; color:rgba(255,255,255,0.65); text-decoration:none; display:block; margin-bottom:10px; transition:color 0.15s; }
+        .rl-footer-link:hover { color:#e8c96b; }
+      `}</style>
+
       {/* Crimson stripe top */}
       <div style={{ height: 3, background: 'linear-gradient(90deg, #c0152a, #7e0606 50%, #c0152a)' }} />
 
@@ -16,7 +21,6 @@ export default function Footer() {
 
           {/* Brand block */}
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
-            {/* Crimson stripe */}
             <div style={{ width: 4, alignSelf: 'stretch', background: 'linear-gradient(172deg, #7e0606, #b70000 32%, #810000)', flexShrink: 0 }} />
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
@@ -30,7 +34,7 @@ export default function Footer() {
                   </div>
                 </div>
               </div>
-              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', lineHeight: 1.7, maxWidth: 300 }}>
+              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', lineHeight: 1.7, maxWidth: 300 }}>
                 Passionate about excellent service &amp; consistently exceeding expectations. We blend technology, equipment, and people in passionate efficiency.
               </p>
             </div>
@@ -40,36 +44,18 @@ export default function Footer() {
           <div style={{ display: 'flex', gap: 64, flexWrap: 'wrap' }}>
             <div>
               <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.22em', color: '#8299c0', marginBottom: 16 }}>Portal</div>
-              {[
-                { href: '/', label: 'All Roles' },
-                { href: '/apply', label: 'Apply Now' },
-              ].map(l => (
-                <div key={l.href} style={{ marginBottom: 10 }}>
-                  <a href={l.href} style={{ fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.65)', textDecoration: 'none', transition: 'color 0.15s' }}
-                    onMouseEnter={e => (e.currentTarget.style.color = '#e8c96b')}
-                    onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.65)')}
-                  >{l.label}</a>
-                </div>
-              ))}
+              <a href="/" className="rl-footer-link">All Roles</a>
+              <a href="/apply" className="rl-footer-link">Apply Now</a>
             </div>
             <div>
               <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.22em', color: '#8299c0', marginBottom: 16 }}>Ray Land</div>
-              {[
-                { href: 'https://rayland.com', label: 'rayland.com' },
-                { href: 'https://rayland.com', label: 'About Us' },
-              ].map(l => (
-                <div key={l.label} style={{ marginBottom: 10 }}>
-                  <a href={l.href} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.65)', textDecoration: 'none' }}
-                    onMouseEnter={e => (e.currentTarget.style.color = '#e8c96b')}
-                    onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.65)')}
-                  >{l.label}</a>
-                </div>
-              ))}
+              <a href="https://rayland.com" target="_blank" rel="noopener noreferrer" className="rl-footer-link">rayland.com</a>
+              <a href="https://rayland.com" target="_blank" rel="noopener noreferrer" className="rl-footer-link">About Us</a>
             </div>
           </div>
         </div>
 
-        {/* Divider */}
+        {/* Bottom bar */}
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
           <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.2em', color: 'rgba(255,255,255,0.3)' }}>
             Stable Engineering // Design Innovation // Perpetual Service
