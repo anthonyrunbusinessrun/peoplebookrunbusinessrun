@@ -4,8 +4,10 @@ import React, { useState, useRef } from 'react'
 export default function ApplicationForm({ roles }: { roles: any[] }) {
   const [done, setDone]         = useState(false)
   const [busy, setBusy]         = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [form, setForm]         = useState<Record<string, string>>({})
   const [resume, setResume]     = useState<File | null>(null)
+  const [resumeUrl, setResumeUrl] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -13,20 +15,56 @@ export default function ApplicationForm({ roles }: { roles: any[] }) {
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
       setForm(f => ({ ...f, [k]: e.target.value }))
 
-  const handleFile = (file: File | null) => {
+  const handleFile = async (file: File | null) => {
     if (!file) return
     if (!file.name.match(/\.(pdf|doc|docx)$/i)) { alert('Please upload a PDF or Word document.'); return }
     if (file.size > 10 * 1024 * 1024) { alert('File must be under 10MB.'); return }
     setResume(file)
+    setResumeUrl(null)
+
+    // Upload immediately to get a public URL
+    setUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append('files', file, file.name)
+      const res = await fetch('/api/uploadthing', {
+        method: 'POST',
+        headers: { 'x-uploadthing-package': 'nextjs-app' },
+        body: fd,
+      })
+      if (res.ok) {
+        const data = await res.json()
+        const url = data?.[0]?.url || data?.data?.[0]?.url
+        if (url) {
+          setResumeUrl(url)
+          console.log('Resume uploaded:', url)
+        }
+      }
+    } catch (e) {
+      console.error('Upload error:', e)
+      // Still allow submission — will use raw file as fallback
+    } finally {
+      setUploading(false)
+    }
   }
 
   const submit = async () => {
     if (!form.fullName?.trim() || !form.email?.trim()) return alert('Full name and email are required.')
+    if (uploading) return alert('Please wait — resume is still uploading.')
     setBusy(true)
     try {
       const fd = new FormData()
       Object.entries(form).forEach(([k, v]) => fd.append(k, v))
-      if (resume) fd.append('resume', resume, resume.name)
+
+      if (resumeUrl) {
+        // Preferred: send public URL so Airtable can attach it
+        fd.append('resumeUrl', resumeUrl)
+        fd.append('resumeName', resume?.name || 'resume.pdf')
+      } else if (resume) {
+        // Fallback: send raw file (email attachment only, won't attach to Airtable)
+        fd.append('resume', resume, resume.name)
+      }
+
       const r = await fetch('/api/apply', { method: 'POST', body: fd })
       if (r.ok) setDone(true)
       else { const err = await r.json().catch(() => ({})); alert(err.error || 'Something went wrong.') }
@@ -59,14 +97,15 @@ export default function ApplicationForm({ roles }: { roles: any[] }) {
         .rl-drop:hover { border-color:#c0152a; }
         .rl-drop.over { border-color:#c0152a; background:rgba(192,21,42,0.03); }
         .rl-drop.has-file { border-color:#166534; background:rgba(22,101,52,0.03); }
+        .rl-drop.uploading { border-color:#c9a84c; background:rgba(201,168,76,0.05); }
       `}</style>
 
       {/* Personal Info */}
       <div>
-        <div style={{ fontFamily: "'Rajdhani',sans-serif", fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.25em', color: '#c0152a', marginBottom: 16, paddingBottom: 8, borderBottom: '1px solid #e0deda', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 3, height: 14, background: '#c0152a' }} />Personal Information
+        <div style={{ fontFamily:"'Rajdhani',sans-serif", fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.25em', color:'#c0152a', marginBottom:16, paddingBottom:8, borderBottom:'1px solid #e0deda', display:'flex', alignItems:'center', gap:10 }}>
+          <div style={{ width:3, height:14, background:'#c0152a' }} />Personal Information
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
           {[['fullName','Full Name *','text'],['email','Email *','email'],['phone','Phone','text'],['cityLocation','City','text']].map(([k,l,t]) => (
             <div key={k}>
               <label style={{ display:'block', fontFamily:"'Rajdhani',sans-serif", fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.2em', color:'#8299c0', marginBottom:6 }}>{l}</label>
@@ -78,10 +117,10 @@ export default function ApplicationForm({ roles }: { roles: any[] }) {
 
       {/* Position */}
       <div>
-        <div style={{ fontFamily: "'Rajdhani',sans-serif", fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.25em', color: '#c0152a', marginBottom: 16, paddingBottom: 8, borderBottom: '1px solid #e0deda', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 3, height: 14, background: '#c0152a' }} />Position Details
+        <div style={{ fontFamily:"'Rajdhani',sans-serif", fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.25em', color:'#c0152a', marginBottom:16, paddingBottom:8, borderBottom:'1px solid #e0deda', display:'flex', alignItems:'center', gap:10 }}>
+          <div style={{ width:3, height:14, background:'#c0152a' }} />Position Details
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
           <div>
             <label style={{ display:'block', fontFamily:"'Rajdhani',sans-serif", fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.2em', color:'#8299c0', marginBottom:6 }}>Applying For</label>
             <select className="rl-inp" onChange={set('roleTitle')}>
@@ -113,28 +152,35 @@ export default function ApplicationForm({ roles }: { roles: any[] }) {
         </div>
       </div>
 
-      {/* Resume */}
+      {/* Resume Upload */}
       <div>
-        <div style={{ fontFamily: "'Rajdhani',sans-serif", fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.25em', color: '#c0152a', marginBottom: 16, paddingBottom: 8, borderBottom: '1px solid #e0deda', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 3, height: 14, background: '#c0152a' }} />Resume / CV
+        <div style={{ fontFamily:"'Rajdhani',sans-serif", fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.25em', color:'#c0152a', marginBottom:16, paddingBottom:8, borderBottom:'1px solid #e0deda', display:'flex', alignItems:'center', gap:10 }}>
+          <div style={{ width:3, height:14, background:'#c0152a' }} />Resume / CV
         </div>
         <div
-          className={`rl-drop${dragOver ? ' over' : ''}${resume ? ' has-file' : ''}`}
+          className={`rl-drop${dragOver ? ' over' : ''}${uploading ? ' uploading' : resume ? ' has-file' : ''}`}
           onDragOver={e => { e.preventDefault(); setDragOver(true) }}
           onDragLeave={() => setDragOver(false)}
           onDrop={e => { e.preventDefault(); setDragOver(false); handleFile(e.dataTransfer.files[0] || null) }}
           onClick={() => fileInputRef.current?.click()}
         >
-          <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx" style={{ display: 'none' }}
+          <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx" style={{ display:'none' }}
             onChange={e => handleFile(e.target.files?.[0] || null)} />
-          {resume ? (
+          {uploading ? (
+            <div>
+              <p style={{ fontFamily:"'Rajdhani',sans-serif", fontSize:14, fontWeight:600, color:'#c9a84c', textTransform:'uppercase', letterSpacing:'0.1em' }}>⟳ Uploading {resume?.name}...</p>
+              <p style={{ fontFamily:"'Rajdhani',sans-serif", fontSize:11, color:'#8299c0', marginTop:4 }}>Please wait</p>
+            </div>
+          ) : resume ? (
             <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:12 }}>
-              <span style={{ color:'#166534', fontSize:20 }}>✓</span>
+              <span style={{ color: resumeUrl ? '#166534' : '#c9a84c', fontSize:20 }}>{resumeUrl ? '✓' : '!'}</span>
               <div style={{ textAlign:'left' }}>
                 <p style={{ fontFamily:"'Rajdhani',sans-serif", fontSize:14, fontWeight:600, color:'#212c42' }}>{resume.name}</p>
-                <p style={{ fontFamily:"'Rajdhani',sans-serif", fontSize:11, color:'#8299c0', textTransform:'uppercase', letterSpacing:'0.1em' }}>{(resume.size/1024).toFixed(0)} KB · Ready</p>
+                <p style={{ fontFamily:"'Rajdhani',sans-serif", fontSize:11, color:'#8299c0', textTransform:'uppercase', letterSpacing:'0.1em' }}>
+                  {(resume.size/1024).toFixed(0)} KB · {resumeUrl ? '✓ Uploaded to cloud' : 'Saved locally'}
+                </p>
               </div>
-              <button onClick={e => { e.stopPropagation(); setResume(null); if (fileInputRef.current) fileInputRef.current.value='' }}
+              <button onClick={e => { e.stopPropagation(); setResume(null); setResumeUrl(null); if (fileInputRef.current) fileInputRef.current.value='' }}
                 style={{ marginLeft:12, background:'none', border:'none', color:'#c0152a', fontSize:18, cursor:'pointer', fontWeight:700 }}>×</button>
             </div>
           ) : (
@@ -151,8 +197,8 @@ export default function ApplicationForm({ roles }: { roles: any[] }) {
 
       {/* Questions */}
       <div>
-        <div style={{ fontFamily: "'Rajdhani',sans-serif", fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.25em', color: '#c0152a', marginBottom: 16, paddingBottom: 8, borderBottom: '1px solid #e0deda', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 3, height: 14, background: '#c0152a' }} />Application Questions
+        <div style={{ fontFamily:"'Rajdhani',sans-serif", fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.25em', color:'#c0152a', marginBottom:16, paddingBottom:8, borderBottom:'1px solid #e0deda', display:'flex', alignItems:'center', gap:10 }}>
+          <div style={{ width:3, height:14, background:'#c0152a' }} />Application Questions
         </div>
         <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
           {[
@@ -170,8 +216,8 @@ export default function ApplicationForm({ roles }: { roles: any[] }) {
         </div>
       </div>
 
-      <button onClick={submit} disabled={busy} className="rl-submit">
-        {busy ? 'Submitting...' : 'Submit Application →'}
+      <button onClick={submit} disabled={busy || uploading} className="rl-submit">
+        {busy ? 'Submitting...' : uploading ? 'Waiting for upload...' : 'Submit Application →'}
       </button>
     </div>
   )

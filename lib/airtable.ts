@@ -23,26 +23,24 @@ export async function getRoles() {
 
 function mapSource(source?: string): string {
   const map: Record<string, string> = {
-    'Walk-in': 'Walk-In', 'Walk-In': 'Walk-In',
-    'Indeed': 'Indeed', 'Referral': 'Referral',
-    'rayland.com': 'rayland.com', 'LinkedIn': 'LinkedIn',
-    'Other': 'Other', 'PeopleBook Portal': 'PeopleBook Portal',
+    'Walk-in': 'Walk-In', 'Walk-In': 'Walk-In', 'Indeed': 'Indeed',
+    'Referral': 'Referral', 'rayland.com': 'rayland.com',
+    'LinkedIn': 'LinkedIn', 'Other': 'Other',
   }
   return source ? (map[source] ?? 'PeopleBook Portal') : 'PeopleBook Portal'
 }
 
-// Postgres → Airtable: called on every new form submission
 export async function createApplicantInAirtable(a: any): Promise<string | null> {
   try {
     const fields: Record<string, any> = {
-      'flde9vGp44KhjGEVp': a.fullName       ?? '',
-      'fldUADnCVHXY9qNzG': a.email          ?? '',
-      'fld3bI1wz5aDVizU6': a.phone          ?? '',
+      'flde9vGp44KhjGEVp': a.fullName           ?? '',
+      'fldUADnCVHXY9qNzG': a.email              ?? '',
+      'fld3bI1wz5aDVizU6': a.phone              ?? '',
       'fldbfpZicElq5uJyt': 'New',
       'fldAfdexZklgVAO4U': new Date().toISOString().split('T')[0],
       'fldSvWaKfte3ML6Se': mapSource(a.source),
-      'fldvwFYuDoZnibiSe': a.cityLocation    ?? '',
-      'fld0Vf3zwR88Xm5XX': a.workAuthorization ?? '',
+      'fldvwFYuDoZnibiSe': a.cityLocation        ?? '',
+      'fld0Vf3zwR88Xm5XX': a.workAuthorization   ?? '',
       'flddZIBprKLaG9yZM': a.shiftPreference ? [a.shiftPreference] : [],
       'fldbiTW4HxULW6PwN': a.q1  ?? '',
       'fld3RpTCPyqib1I18': a.q2  ?? '',
@@ -51,23 +49,31 @@ export async function createApplicantInAirtable(a: any): Promise<string | null> 
       'fld3mfhRBAq9JVuDg': a.q15 ?? '',
     }
 
-    if (a.resumeData?.base64) {
-      fields['fldVvojhsidRjJDDk'] = [{ url: `data:${a.resumeData.type};base64,${a.resumeData.base64}`, filename: a.resumeData.name }]
+    // Resume attachment — Airtable needs a public URL, not base64
+    const resumeUrl = a.resumeData?.url || a.resumeUrl
+    const resumeName = a.resumeData?.name || a.resumeName
+    if (resumeUrl && resumeUrl.startsWith('http')) {
+      // Use public URL directly — this is what Airtable requires for attachments
+      fields['fldVvojhsidRjJDDk'] = [{ url: resumeUrl, filename: resumeName || 'resume.pdf' }]
     }
 
     const record = await base(process.env.AIRTABLE_APPLICANTS_TABLE!).create(fields, { typecast: true })
-    console.log('✅ Airtable sync success:', a.fullName, '→', record.id)
-    return record.id  // return airtableId so we can store it in Postgres
+    console.log('✅ Airtable sync:', a.fullName, '→', record.id, resumeUrl ? '(with resume)' : '(no resume)')
+    return record.id
   } catch (e) {
     console.error('Airtable sync error:', e)
     return null
   }
 }
 
-// Airtable → Postgres: called from /api/webhook/airtable
 export async function getApplicantFromAirtable(airtableId: string) {
   try {
     const record = await base(process.env.AIRTABLE_APPLICANTS_TABLE!).find(airtableId)
+    // Get resume attachment URL if exists
+    const attachments = record.get('fldVvojhsidRjJDDk') as any[]
+    const resumeUrl  = attachments?.[0]?.url  ?? null
+    const resumeName = attachments?.[0]?.filename ?? null
+
     return {
       airtableId: record.id,
       fullName:          record.get('flde9vGp44KhjGEVp') as string ?? '',
@@ -78,6 +84,8 @@ export async function getApplicantFromAirtable(airtableId: string) {
       source:            (record.get('fldSvWaKfte3ML6Se') as any)?.name ?? '',
       workAuthorization: (record.get('fld0Vf3zwR88Xm5XX') as any)?.name ?? '',
       shiftPreference:   (record.get('flddZIBprKLaG9yZM') as any)?.[0]?.name ?? '',
+      resumeUrl,
+      resumeName,
       q1:  record.get('fldbiTW4HxULW6PwN') as string ?? '',
       q2:  record.get('fld3RpTCPyqib1I18') as string ?? '',
       q3:  record.get('fldKGGBUcUPOgGP5B') as string ?? '',

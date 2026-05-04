@@ -70,6 +70,8 @@ model Applicant {
   q13               String?
   q14               String?
   q15               String?
+  resumeUrl         String?
+  resumeName        String?
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
   roles             ApplicantRole[]
