@@ -19,53 +19,48 @@ export async function POST(req: NextRequest) {
 
     // Handle resume file
     const resumeFile = formData.get('resume') as File | null
-    let resumeData: { name: string; base64: string; type: string; url?: string } | null = null
-
+    let resumeData: { name: string; base64: string; type: string } | null = null
     if (resumeFile && resumeFile.size > 0) {
       const buffer = await resumeFile.arrayBuffer()
-      const base64 = Buffer.from(buffer).toString('base64')
       resumeData = {
         name:   resumeFile.name,
-        base64,
+        base64: Buffer.from(buffer).toString('base64'),
         type:   resumeFile.type || 'application/pdf',
       }
     }
 
-    // 1. Save to PostgreSQL
+    const applicantData = {
+      fullName,
+      email,
+      phone:             get('phone')             || null,
+      stage:             'NEW' as const,
+      cityLocation:      get('cityLocation')       || null,
+      workAuthorization: get('workAuthorization')  || null,
+      shiftPreference:   get('shiftPreference')    || null,
+      source:            get('source')             || null,
+      dateApplied:       new Date(),
+      q1:  get('q1')  || null,
+      q2:  get('q2')  || null,
+      q3:  get('q3')  || null,
+      q8:  get('q8')  || null,
+      q15: get('q15') || null,
+    }
+
+    // 1. Sync to Airtable FIRST — get back the airtableId
+    const airtableId = await createApplicantInAirtable({ ...applicantData, roleTitle: get('roleTitle'), resumeData })
+
+    // 2. Save to Postgres WITH the airtableId so they're linked
     const applicant = await prisma.applicant.create({
       data: {
-        fullName,
-        email,
-        phone:             get('phone')            || null,
-        stage:             'NEW',
-        cityLocation:      get('cityLocation')      || null,
-        workAuthorization: get('workAuthorization') || null,
-        shiftPreference:   get('shiftPreference')   || null,
-        source:            get('source')            || null,
-        dateApplied:       new Date(),
-        q1:  get('q1')  || null,
-        q2:  get('q2')  || null,
-        q3:  get('q3')  || null,
-        q8:  get('q8')  || null,
-        q15: get('q15') || null,
+        ...applicantData,
+        airtableId: airtableId ?? undefined,
       },
     })
 
-    // 2. Sync to Airtable (including resume attachment)
-    try {
-      await createApplicantInAirtable({
-        ...applicant,
-        roleTitle:  get('roleTitle'),
-        resumeData,
-      })
-    } catch (e) {
-      console.error('Airtable sync error:', e)
-    }
-
-    // 3. Send email notifications with resume attached
+    // 3. Send email notifications
     await sendApplicationNotification({
       ...applicant,
-      roleTitle:  get('roleTitle'),
+      roleTitle: get('roleTitle'),
       resumeData,
     })
 
