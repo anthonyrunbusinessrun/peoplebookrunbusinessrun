@@ -4,9 +4,9 @@ const f = createUploadthing()
 
 export const ourFileRouter = {
   resumeUploader: f({
-    pdf: { maxFileSize: '10MB' },
-    'application/msword': { maxFileSize: '10MB' },
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': { maxFileSize: '10MB' },
+    pdf: { maxFileSize: '8MB' },
+    'application/msword': { maxFileSize: '8MB' },
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': { maxFileSize: '8MB' },
   })
     .middleware(async () => {
       return {}
