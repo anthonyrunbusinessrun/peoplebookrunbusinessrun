@@ -154,7 +154,7 @@ export async function POST(req: NextRequest) {
           provider:   routing.provider.providerName,
           latencyMs,
           actionKey:  akey,
-          citations:  ragCtx?.citations ?? undefined,
+          citations:  (ragCtx?.citations ?? undefined) as object | undefined,
         }).then(() => {
           // Schedule memory summarization after saving
           maybeScheduleSummary(convId, sid)

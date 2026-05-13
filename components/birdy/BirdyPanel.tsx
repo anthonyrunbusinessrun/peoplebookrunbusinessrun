@@ -32,6 +32,7 @@ const TAB_ICONS: Record<Tab, string> = {
   actions:  'M13 2L3 14h9l-1 8 10-12h-9z',
   knowledge:'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z',
   activity: 'M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4',
+  admin:    'M12 2l2 7h7l-5.5 4 2 7L12 16l-5.5 4 2-7L3 9h7z',
 }
 
 export default function BirdyPanel({ open, onClose }: Props) {

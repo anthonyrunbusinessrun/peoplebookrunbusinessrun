@@ -1,17 +1,8 @@
 /**
  * lib/birdy/pgvector.ts
  * pgvector runtime setup and all vector operations.
- *
- * WHY RAW SQL:
- *   Prisma 5.x has no native vector(768) type support.
- *   The BirdyEmbedding model in schema.prisma holds all regular columns.
- *   This module adds the vector column, manages the ANN index,
- *   and owns every INSERT / SELECT that touches vectors.
- *
- * CALL ensureVectorSetup() once at app startup or lazily before first use.
- * It is idempotent — safe to call repeatedly.
+ * Prisma does not support vector(768) natively — all vector I/O uses $queryRaw.
  */
-
 import { prisma } from '@/lib/prisma'
 
 let setupComplete = false
@@ -19,85 +10,42 @@ let setupComplete = false
 export async function ensureVectorSetup(): Promise<void> {
   if (setupComplete) return
   try {
-    // 1. Enable pgvector extension (requires pg superuser or rds_superuser)
     await prisma.$executeRaw`CREATE EXTENSION IF NOT EXISTS vector`
-
-    // 2. Add vector column if not present
-    await prisma.$executeRaw`
-      ALTER TABLE birdy_embeddings
-      ADD COLUMN IF NOT EXISTS embedding vector(768)
-    `
-
-    // 3. Create IVFFlat index for ANN cosine search
-    //    lists=50 is appropriate for < 1M rows; increase for larger datasets
-    await prisma.$executeRaw`
-      CREATE INDEX IF NOT EXISTS birdy_embeddings_ivfflat
-      ON birdy_embeddings
-      USING ivfflat (embedding vector_cosine_ops)
-      WITH (lists = 50)
-    `
-
+    await prisma.$executeRaw`ALTER TABLE birdy_embeddings ADD COLUMN IF NOT EXISTS embedding vector(768)`
+    await prisma.$executeRaw`CREATE INDEX IF NOT EXISTS birdy_embeddings_ivfflat ON birdy_embeddings USING ivfflat (embedding vector_cosine_ops) WITH (lists = 50)`
     setupComplete = true
     console.log('[pgvector] Setup complete')
   } catch (err) {
-    // Non-fatal: if pgvector unavailable, RAG is disabled but app still works
-    console.warn('[pgvector] Setup failed — RAG will be disabled:', (err as Error).message)
+    console.warn('[pgvector] Setup failed — RAG disabled:', (err as Error).message)
   }
 }
 
-// ── Write ──────────────────────────────────────────────────────────────────
-
-/**
- * Upsert an embedding for a chunk.
- * Must be called AFTER the BirdyEmbedding row is created via Prisma.
- */
-export async function upsertEmbedding(
-  embeddingId: string,
-  vector: number[],
-): Promise<void> {
+export async function upsertEmbedding(embeddingId: string, vector: number[]): Promise<void> {
   const vectorStr = `[${vector.join(',')}]`
-  await prisma.$executeRaw`
-    UPDATE birdy_embeddings
-    SET    embedding = ${vectorStr}::vector
-    WHERE  id = ${embeddingId}
-  `
+  await prisma.$executeRaw`UPDATE birdy_embeddings SET embedding = ${vectorStr}::vector WHERE id = ${embeddingId}`
 }
-
-// ── Read ───────────────────────────────────────────────────────────────────
 
 export interface SimilarChunk {
-  embeddingId: string
-  chunkId:     string
-  documentId:  string
+  embeddingId:  string
+  chunkId:      string
+  documentId:   string
   documentName: string
-  preview:     string
-  content:     string
-  score:       number   // 0–1 cosine similarity
-  namespace:   string
+  preview:      string
+  content:      string
+  score:        number
+  namespace:    string
 }
 
-/**
- * Find the top-K most similar chunks to a query vector.
- * Uses cosine distance (1 - cosine_similarity) via pgvector `<=>` operator.
- */
 export async function similaritySearch(
-  queryVector:  number[],
-  namespace:    string,
-  topK:         number = 5,
-  minScore:     number = 0.65,
+  queryVector: number[],
+  namespace:   string,
+  topK:        number = 5,
+  minScore:    number = 0.65,
 ): Promise<SimilarChunk[]> {
   const vectorStr = `[${queryVector.join(',')}]`
+  type Row = { embedding_id: string; chunk_id: string; document_id: string; document_name: string; preview: string; content: string; score: number; namespace: string }
 
-  const rows = await prisma.$queryRaw<Array<{
-    embedding_id: string
-    chunk_id:     string
-    document_id:  string
-    document_name: string
-    preview:      string
-    content:      string
-    score:        number
-    namespace:    string
-  }>>`
+  const rows = await prisma.$queryRaw<Row[]>`
     SELECT
       e.id           AS embedding_id,
       e.chunk_id,
@@ -116,8 +64,7 @@ export async function similaritySearch(
     ORDER BY score DESC
     LIMIT ${topK}
   `
-
-  return rows.map(r => ({
+  return (rows as Array<{ embedding_id: string; chunk_id: string; document_id: string; document_name: string; preview: string; content: string; score: number; namespace: string }>).map(r => ({
     embeddingId:  r.embedding_id,
     chunkId:      r.chunk_id,
     documentId:   r.document_id,
@@ -129,41 +76,25 @@ export async function similaritySearch(
   }))
 }
 
-/**
- * Full-text fallback search — used when pgvector is unavailable
- * or the query embedding fails. Uses Postgres ILIKE.
- */
 export async function fullTextSearch(
   query:     string,
   namespace: string,
   topK:      number = 5,
 ): Promise<SimilarChunk[]> {
   const term = `%${query.slice(0, 100)}%`
-  const rows = await prisma.$queryRaw<Array<{
-    chunk_id:     string
-    document_id:  string
-    document_name: string
-    preview:      string
-    content:      string
-    namespace:    string
-  }>>`
-    SELECT
-      c.id      AS chunk_id,
-      d.id      AS document_id,
-      d.name    AS document_name,
-      e.preview,
-      c.content,
-      e.namespace
-    FROM  birdy_document_chunks c
-    JOIN  birdy_documents       d ON d.id  = c.document_id
-    LEFT JOIN birdy_embeddings  e ON e.chunk_id = c.id
+  type FTRow = { chunk_id: string; document_id: string; document_name: string; preview: string | null; content: string; namespace: string | null }
+
+  const rows = await prisma.$queryRaw<FTRow[]>`
+    SELECT c.id AS chunk_id, d.id AS document_id, d.name AS document_name,
+           e.preview, c.content, e.namespace
+    FROM   birdy_document_chunks c
+    JOIN   birdy_documents       d ON d.id  = c.document_id
+    LEFT JOIN birdy_embeddings   e ON e.chunk_id = c.id
     WHERE (c.content ILIKE ${term} OR d.name ILIKE ${term})
-      AND d.namespace = ${namespace}
-      AND d.status    = 'READY'
-    ORDER BY c.chunk_index
-    LIMIT ${topK}
+      AND d.namespace = ${namespace} AND d.status = 'READY'
+    ORDER BY c.chunk_index LIMIT ${topK}
   `
-  return rows.map(r => ({
+  return (rows as Array<{ chunk_id: string; document_id: string; document_name: string; preview: string | null; content: string; namespace: string | null }>).map(r => ({
     embeddingId:  '',
     chunkId:      r.chunk_id,
     documentId:   r.document_id,

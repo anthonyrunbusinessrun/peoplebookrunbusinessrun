@@ -45,7 +45,7 @@ export async function getMemoryContext(sessionId: string): Promise<string> {
 
     const lines = summaries
       .reverse()  // chronological order
-      .map(s => {
+      .map((s: { summary: string; createdAt: Date; messageCount: number }) => {
         const age = formatAge(s.createdAt)
         return `- (${age}, ~${s.messageCount} messages) ${s.summary.slice(0, SUMMARY_MAX_CHARS)}`
       })
@@ -102,7 +102,7 @@ async function summarizeIfNeeded(conversationId: string, sessionId: string): Pro
 
   // Build transcript for summarization
   const transcript = messages
-    .map(m => `${m.role === 'USER' ? 'User' : 'Birdy'}: ${m.content.slice(0, 300)}`)
+    .map((m: { id: string; role: string; content: string }) => `${m.role === 'USER' ? 'User' : 'Birdy'}: ${m.content.slice(0, 300)}`)
     .join('\n\n')
 
   const summaryPrompt = `Summarize this conversation in 2-3 sentences. Focus on: decisions made, tasks discussed, key context. Be concise and factual. Do not editorialize.

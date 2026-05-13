@@ -99,7 +99,7 @@ export async function ingestDocument(documentId: string): Promise<IngestionResul
       // Create embedding metadata rows first
       await prisma.birdyEmbedding.deleteMany({ where: { documentId } })
       const embeddingRecords = await prisma.$transaction(
-        chunkRecords.map(cr => prisma.birdyEmbedding.create({
+        chunkRecords.map((cr: { id: string; content: string }) => prisma.birdyEmbedding.create({
           data: {
             chunkId:    cr.id,
             documentId,
@@ -111,12 +111,12 @@ export async function ingestDocument(documentId: string): Promise<IngestionResul
       )
 
       // Embed in batches
-      const texts     = chunkRecords.map(cr => cr.content)
+      const texts     = chunkRecords.map((cr: { content: string }) => cr.content)
       const vectors   = await nomicEmbedder.embedBatch(texts, EMBED_BATCH)
 
       // Write vectors via raw SQL
       await Promise.all(
-        embeddingRecords.map((er, i) => upsertEmbedding(er.id, vectors[i]))
+        embeddingRecords.map((er: { id: string }, i: number) => upsertEmbedding(er.id, vectors[i]))
       )
 
       embedded = true
