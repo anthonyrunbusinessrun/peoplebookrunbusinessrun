@@ -1,11 +1,45 @@
+/**
+ * lib/airtable.ts
+ * Airtable API helpers with response caching.
+ *
+ * WHY CACHING:
+ *   Roles change infrequently (a few times a day at most).
+ *   Birdy calls getRoles() on every chat message to build context.
+ *   Without caching: Airtable is hit 10–50×/min under normal usage.
+ *   With a 5-minute TTL cache: Airtable is hit at most once every 5 minutes.
+ *
+ *   Cache TTL: 5 minutes (300 s).
+ *   Invalidated by: the Airtable webhook handler at /api/webhook/airtable.
+ */
+
 import Airtable from 'airtable'
+import { cached, invalidate } from '@/lib/birdy/cache'
+
+const ROLES_CACHE_KEY = 'airtable:roles'
+const ROLES_TTL_MS    = 5 * 60 * 1000   // 5 minutes
 
 const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY })
   .base(process.env.AIRTABLE_BASE_ID!)
 
-export async function getRoles() {
+export type Role = {
+  id:         string
+  title:      string
+  department: string
+  status:     string
+  priority:   string
+  type:       string
+  opened:     string
+  notes:      string
+  shift:      string | null
+  hours:      string | null
+  openings:   number
+}
+
+async function fetchRoles(): Promise<Role[]> {
   const records = await base(process.env.AIRTABLE_ROLES_TABLE!)
-    .select({ sort: [{ field: 'Status', direction: 'asc' }] }).all()
+    .select({ sort: [{ field: 'Status', direction: 'asc' }] })
+    .all()
+
   return records.map(r => ({
     id:         r.id,
     title:      r.get('Role Title')       as string ?? '',
@@ -21,14 +55,38 @@ export async function getRoles() {
   }))
 }
 
+/**
+ * Get all roles — cached for 5 minutes to protect Airtable rate limits
+ * and avoid hammering the API on every Birdy message.
+ */
+export async function getRoles(): Promise<Role[]> {
+  return cached(ROLES_CACHE_KEY, ROLES_TTL_MS, fetchRoles)
+}
+
+/**
+ * Invalidate the roles cache — call this from the Airtable webhook handler
+ * so changes reflect within seconds instead of waiting for TTL expiry.
+ */
+export function invalidateRolesCache(): void {
+  invalidate(ROLES_CACHE_KEY)
+}
+
+// ── Source mapping ────────────────────────────────────────────────────────────
+
 function mapSource(source?: string): string {
   const map: Record<string, string> = {
-    'Walk-in': 'Walk-In', 'Walk-In': 'Walk-In', 'Indeed': 'Indeed',
-    'Referral': 'Referral', 'rayland.com': 'rayland.com',
-    'LinkedIn': 'LinkedIn', 'Other': 'Other',
+    'Walk-in':  'Walk-In',
+    'Walk-In':  'Walk-In',
+    'Indeed':   'Indeed',
+    'Referral': 'Referral',
+    'rayland.com': 'rayland.com',
+    'LinkedIn': 'LinkedIn',
+    'Other':    'Other',
   }
   return source ? (map[source] ?? 'PeopleBook Portal') : 'PeopleBook Portal'
 }
+
+// ── Applicant operations ──────────────────────────────────────────────────────
 
 export async function createApplicantInAirtable(a: any): Promise<string | null> {
   try {
@@ -49,11 +107,9 @@ export async function createApplicantInAirtable(a: any): Promise<string | null> 
       'fld3mfhRBAq9JVuDg': a.q15 ?? '',
     }
 
-    // Resume attachment — Airtable needs a public URL, not base64
-    const resumeUrl = a.resumeData?.url || a.resumeUrl
+    const resumeUrl  = a.resumeData?.url  || a.resumeUrl
     const resumeName = a.resumeData?.name || a.resumeName
     if (resumeUrl && resumeUrl.startsWith('http')) {
-      // Use public URL directly — this is what Airtable requires for attachments
       fields['fldVvojhsidRjJDDk'] = [{ url: resumeUrl, filename: resumeName || 'resume.pdf' }]
     }
 
@@ -69,10 +125,9 @@ export async function createApplicantInAirtable(a: any): Promise<string | null> 
 export async function getApplicantFromAirtable(airtableId: string) {
   try {
     const record = await base(process.env.AIRTABLE_APPLICANTS_TABLE!).find(airtableId)
-    // Get resume attachment URL if exists
     const attachments = record.get('fldVvojhsidRjJDDk') as any[]
-    const resumeUrl  = attachments?.[0]?.url  ?? null
-    const resumeName = attachments?.[0]?.filename ?? null
+    const resumeUrl   = attachments?.[0]?.url      ?? null
+    const resumeName  = attachments?.[0]?.filename ?? null
 
     return {
       airtableId: record.id,
