@@ -7,7 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ── Existing models ────────────────────────────────────────────────────────
+// ── Existing portal models (unchanged) ────────────────────────────────────
 
 model Role {
   id             String          @id @default(cuid())
@@ -26,7 +26,6 @@ model Role {
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   applicants     ApplicantRole[]
-
   @@map("roles")
 }
 
@@ -57,28 +56,15 @@ model Applicant {
   lastContacted     DateTime?
   dateApplied       DateTime?
   notes             String?
-  q1                String?
-  q2                String?
-  q3                String?
-  q4                String?
-  q5                String?
-  q6                String?
-  q7                String?
-  q8                String?
-  q9                String?
-  q10               String?
-  q11               String?
-  q12               String?
-  q13               String?
-  q14               String?
-  q15               String?
+  q1 String? q2 String? q3 String? q4 String? q5 String?
+  q6 String? q7 String? q8 String? q9 String? q10 String?
+  q11 String? q12 String? q13 String? q14 String? q15 String?
   resumeUrl         String?
   resumeName        String?
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
   roles             ApplicantRole[]
   skills            ApplicantSkill[]
-
   @@map("applicants")
 }
 
@@ -88,7 +74,6 @@ model ApplicantRole {
   type        RoleLinkType @default(APPLIED)
   applicant   Applicant    @relation(fields: [applicantId], references: [id], onDelete: Cascade)
   role        Role         @relation(fields: [roleId], references: [id], onDelete: Cascade)
-
   @@id([applicantId, roleId, type])
   @@map("applicant_roles")
 }
@@ -101,7 +86,6 @@ model Skill {
   notes      String?
   createdAt  DateTime         @default(now())
   applicants ApplicantSkill[]
-
   @@map("skills")
 }
 
@@ -110,22 +94,21 @@ model ApplicantSkill {
   skillId     String
   applicant   Applicant @relation(fields: [applicantId], references: [id], onDelete: Cascade)
   skill       Skill     @relation(fields: [skillId], references: [id], onDelete: Cascade)
-
   @@id([applicantId, skillId])
   @@map("applicant_skills")
 }
 
-// ── Birdy AI — Core ────────────────────────────────────────────────────────
+// ── Birdy core ─────────────────────────────────────────────────────────────
 
 model BirdyConversation {
-  id        String         @id @default(cuid())
+  id        String                @id @default(cuid())
   sessionId String
   title     String?
-  module    String?        // page context: "home" | "apply" | "admin" | etc.
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
+  module    String?
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
   messages  BirdyMessage[]
-
+  summaries BirdyMemorySummary[]
   @@index([sessionId, updatedAt(sort: Desc)])
   @@map("birdy_conversations")
 }
@@ -140,38 +123,39 @@ model BirdyMessage {
   tokensIn       Int               @default(0)
   tokensOut      Int               @default(0)
   latencyMs      Int?
-  actionKey      String?           // if triggered by a quick action
+  actionKey      String?
+  citations      Json?             // Array of {chunkId, documentName, score}
   createdAt      DateTime          @default(now())
   conversation   BirdyConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-
   @@index([conversationId, createdAt(sort: Asc)])
   @@map("birdy_messages")
 }
 
-// ── Birdy AI — Observability ───────────────────────────────────────────────
+// ── Birdy observability ────────────────────────────────────────────────────
 
 model BirdyUsageLog {
   id             String   @id @default(cuid())
   sessionId      String
   conversationId String?
-  provider       String   // "claude" | "ollama"
+  provider       String
   model          String
-  intent         String?  // "simple" | "code" | "reasoning" | "strategic"
+  intent         String?
   tokensIn       Int      @default(0)
   tokensOut      Int      @default(0)
   latencyMs      Int?
-  status         String   @default("success")  // "success" | "error" | "fallback"
+  ragChunksUsed  Int?     // how many RAG chunks were injected
+  ragLatencyMs   Int?     // how long retrieval took
+  status         String   @default("success")
   errorMessage   String?
-  pageModule     String?  // which TeamBase module triggered this
-  actionKey      String?  // quick action key if applicable
+  pageModule     String?
+  actionKey      String?
   createdAt      DateTime @default(now())
-
   @@index([sessionId, createdAt(sort: Desc)])
   @@index([createdAt(sort: Desc)])
   @@map("birdy_usage_logs")
 }
 
-// ── Birdy AI — Knowledge Base (RAG-ready) ─────────────────────────────────
+// ── Birdy knowledge base ───────────────────────────────────────────────────
 
 model BirdyDocument {
   id          String               @id @default(cuid())
@@ -179,70 +163,77 @@ model BirdyDocument {
   name        String
   mimeType    String
   sizeBytes   Int?
-  storageUrl  String               // UploadThing URL
+  storageUrl  String
   status      DocumentStatus       @default(PENDING)
   chunkCount  Int                  @default(0)
+  wordCount   Int?
   errorMsg    String?
   namespace   String               @default("default")
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
   chunks      BirdyDocumentChunk[]
-
+  embeddings  BirdyEmbedding[]
   @@index([sessionId, createdAt(sort: Desc)])
   @@map("birdy_documents")
 }
 
 model BirdyDocumentChunk {
-  id          String        @id @default(cuid())
+  id          String         @id @default(cuid())
   documentId  String
   chunkIndex  Int
   content     String
   tokenCount  Int?
-  createdAt   DateTime      @default(now())
-  document    BirdyDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
-
+  startChar   Int?
+  endChar     Int?
+  createdAt   DateTime       @default(now())
+  document    BirdyDocument  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  embedding   BirdyEmbedding?
   @@index([documentId, chunkIndex])
   @@map("birdy_document_chunks")
 }
 
+// BirdyEmbedding stores metadata for each embedded chunk.
+// The actual vector(768) column is added at runtime by ensureVectorSetup()
+// because Prisma does not natively support pgvector's vector type.
+// All vector reads/writes use $queryRaw / $executeRaw.
+model BirdyEmbedding {
+  id         String             @id @default(cuid())
+  chunkId    String             @unique
+  documentId String
+  sessionId  String
+  namespace  String             @default("default")
+  preview    String             // first 200 chars — for debug/display
+  embeddingDim Int              @default(768)
+  embeddedAt DateTime           @default(now())
+  chunk      BirdyDocumentChunk @relation(fields: [chunkId], references: [id], onDelete: Cascade)
+  document   BirdyDocument      @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  @@index([sessionId, namespace])
+  @@map("birdy_embeddings")
+}
+
+// ── Birdy memory ───────────────────────────────────────────────────────────
+
+model BirdyMemorySummary {
+  id              String            @id @default(cuid())
+  sessionId       String
+  conversationId  String
+  summary         String            // AI-generated summary of the message range
+  messageCount    Int               // how many messages this covers
+  fromMessageId   String?
+  toMessageId     String?
+  model           String?           // which model generated the summary
+  createdAt       DateTime          @default(now())
+  conversation    BirdyConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  @@index([sessionId, createdAt(sort: Desc)])
+  @@index([conversationId])
+  @@map("birdy_memory_summaries")
+}
+
 // ── Enums ──────────────────────────────────────────────────────────────────
 
-enum RoleStatus {
-  OPEN
-  ON_HOLD
-  FILLED
-  CLOSED
-}
-
-enum Priority {
-  HIGH
-  MEDIUM
-  LOW
-}
-
-enum Stage {
-  NEW
-  SCREENING
-  INTERVIEW
-  OFFER
-  HIRED
-  REJECTED
-  ON_HOLD
-}
-
-enum RoleLinkType {
-  APPLIED
-  CAPABLE
-}
-
-enum BirdyRole {
-  USER
-  ASSISTANT
-}
-
-enum DocumentStatus {
-  PENDING
-  PROCESSING
-  READY
-  ERROR
-}
+enum RoleStatus   { OPEN ON_HOLD FILLED CLOSED }
+enum Priority     { HIGH MEDIUM LOW }
+enum Stage        { NEW SCREENING INTERVIEW OFFER HIRED REJECTED ON_HOLD }
+enum RoleLinkType { APPLIED CAPABLE }
+enum BirdyRole    { USER ASSISTANT }
+enum DocumentStatus { PENDING PROCESSING READY ERROR }

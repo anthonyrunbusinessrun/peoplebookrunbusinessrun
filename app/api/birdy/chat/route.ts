@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { checkRateLimit, getRateLimitIdentifier } from '@/lib/birdy/rate-limiter'
 import { routeMessage } from '@/lib/birdy/router'
 import { buildSystemPrompt, formatRolesForContext } from '@/lib/birdy/prompt'
-import { detectModule, buildContextBlock } from '@/lib/birdy/context'
+import { detectModule } from '@/lib/birdy/context'
 import { getConversation, getMessageHistory, saveMessage, createConversation } from '@/lib/birdy/db'
 import { logUsage } from '@/lib/birdy/usage-logger'
+import { buildRagContext } from '@/lib/birdy/rag'
+import { getMemoryContext, maybeScheduleSummary } from '@/lib/birdy/memory'
 import { getRoles } from '@/lib/airtable'
 
 export const runtime    = 'nodejs'
@@ -13,13 +15,10 @@ export const maxDuration = 55
 
 const inFlight = new Set<string>()
 const enc      = new TextEncoder()
-
-function sse(obj: object): Uint8Array {
-  return enc.encode(`data: ${JSON.stringify(obj)}\n\n`)
-}
+const sse      = (obj: object) => enc.encode(`data: ${JSON.stringify(obj)}\n\n`)
 
 export async function POST(req: NextRequest) {
-  // 1. Rate limit
+  // ── Rate limit ─────────────────────────────────────────────────────────
   const id = getRateLimitIdentifier(req)
   const rl = checkRateLimit(id, { limit: 10, windowMs: 60_000 })
   if (!rl.allowed) {
@@ -29,27 +28,31 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // 2. Parse
-  let body: { message?: unknown; conversationId?: unknown; sessionId?: unknown; pageModule?: unknown; actionKey?: unknown }
+  // ── Parse body ─────────────────────────────────────────────────────────
+  let body: {
+    message?: unknown; conversationId?: unknown; sessionId?: unknown
+    pageModule?: unknown; actionKey?: unknown; namespace?: unknown
+  }
   try { body = await req.json() }
   catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
 
-  const { message, conversationId, sessionId, pageModule, actionKey } = body
+  const { message, conversationId, sessionId, pageModule, actionKey, namespace } = body
   if (typeof message   !== 'string' || !message.trim())   return NextResponse.json({ error: 'message required'   }, { status: 400 })
   if (typeof sessionId !== 'string' || !sessionId.trim()) return NextResponse.json({ error: 'sessionId required' }, { status: 400 })
 
   const msg  = message.trim().slice(0, 16_000)
   const sid  = sessionId.trim()
   const cid  = typeof conversationId === 'string' ? conversationId.trim() : null
-  const mod  = typeof pageModule     === 'string' ? pageModule     : 'unknown'
-  const akey = typeof actionKey      === 'string' ? actionKey      : undefined
+  const mod  = typeof pageModule === 'string' ? pageModule : 'unknown'
+  const akey = typeof actionKey  === 'string' ? actionKey  : undefined
+  const ns   = typeof namespace  === 'string' ? namespace  : 'default'
 
-  // 3. Dedup
+  // ── Dedup guard ────────────────────────────────────────────────────────
   const dedupKey = `${sid}:${cid ?? 'new'}:${msg.slice(0, 40)}`
   if (inFlight.has(dedupKey)) return NextResponse.json({ error: 'Already in progress' }, { status: 409 })
   inFlight.add(dedupKey)
 
-  // 4. Conversation
+  // ── Resolve conversation ───────────────────────────────────────────────
   let convId: string
   try {
     if (!cid) {
@@ -60,36 +63,43 @@ export async function POST(req: NextRequest) {
       if (!conv) { inFlight.delete(dedupKey); return NextResponse.json({ error: 'Not found' }, { status: 404 }) }
       convId = cid
     }
-  } catch (err) {
+  } catch {
     inFlight.delete(dedupKey)
-    console.error('[chat] DB error:', err)
     return NextResponse.json({ error: 'Database error' }, { status: 503 })
   }
 
-  // 5. Context (parallel, both non-fatal)
-  const [histResult, rolesResult] = await Promise.allSettled([
+  // ── Load all context in parallel ───────────────────────────────────────
+  // history + roles + memory + RAG — all non-fatal on failure
+  const [histResult, rolesResult, memResult, ragResult] = await Promise.allSettled([
     getMessageHistory(convId),
     getRoles(),
+    getMemoryContext(sid),
+    buildRagContext(msg, ns),
   ])
-  const history   = histResult.status  === 'fulfilled' ? histResult.value  : []
-  const roleList  = rolesResult.status === 'fulfilled' ? rolesResult.value : []
-  const pageCtx   = detectModule(mod)
+
+  const history     = histResult.status  === 'fulfilled' ? histResult.value  : []
+  const roleList    = rolesResult.status === 'fulfilled' ? rolesResult.value : []
+  const memoryBlock = memResult.status   === 'fulfilled' ? memResult.value   : ''
+  const ragCtx      = ragResult.status   === 'fulfilled' ? ragResult.value   : null
+  const pageCtx     = detectModule(mod)
 
   const systemPrompt = buildSystemPrompt({
     openRoles:   formatRolesForContext(roleList),
     pageContext:  pageCtx,
+    memoryBlock,
+    ragBlock:    ragCtx?.systemBlock,
   })
 
-  // 6. Save user message
+  // ── Save user message ──────────────────────────────────────────────────
   try {
     await saveMessage({ conversationId: convId, role: 'USER', content: msg, actionKey: akey })
-  } catch (err) {
+  } catch {
     inFlight.delete(dedupKey)
     return NextResponse.json({ error: 'Failed to save message' }, { status: 503 })
   }
 
-  // 7. Route
-  const routing      = routeMessage(msg)
+  // ── Route to provider ──────────────────────────────────────────────────
+  const routing       = routeMessage(msg)
   const messagesForAI = [...history, { role: 'user' as const, content: msg }]
   let   fullContent   = ''
   const startTime     = Date.now()
@@ -98,7 +108,14 @@ export async function POST(req: NextRequest) {
     async start(ctrl) {
       const send = (obj: object) => { try { ctrl.enqueue(sse(obj)) } catch {} }
 
-      send({ conversationId: convId, model: routing.provider.modelName, intent: routing.intent })
+      // First event: metadata for the client
+      send({
+        conversationId: convId,
+        model:          routing.provider.modelName,
+        intent:         routing.intent,
+        ragUsed:        (ragCtx?.chunksUsed ?? 0) > 0,
+        citations:      ragCtx?.citations ?? [],
+      })
 
       const tryProvider = async (provider: typeof routing.provider) => {
         fullContent = ''
@@ -113,25 +130,21 @@ export async function POST(req: NextRequest) {
 
       try {
         await tryProvider(routing.provider)
-      } catch (err) {
+      } catch {
         if (routing.fallback !== routing.provider) {
           usageStatus = 'fallback'
-          try { await tryProvider(routing.fallback) }
-          catch (err2) {
-            usageStatus = 'error'
-            send({ error: 'AI service unavailable. Please try again.', done: true })
-            ctrl.close(); inFlight.delete(dedupKey); return
-          }
+          try   { await tryProvider(routing.fallback) }
+          catch { usageStatus = 'error'; send({ error: 'AI service unavailable', done: true }); ctrl.close(); inFlight.delete(dedupKey); return }
         } else {
           usageStatus = 'error'
-          send({ error: 'AI service unavailable. Please try again.', done: true })
+          send({ error: 'AI service unavailable', done: true })
           ctrl.close(); inFlight.delete(dedupKey); return
         }
       }
 
       const latencyMs = Date.now() - startTime
 
-      // Async saves — never block the stream
+      // Async persistence — never block the stream
       if (fullContent.trim()) {
         saveMessage({
           conversationId: convId,
@@ -141,6 +154,10 @@ export async function POST(req: NextRequest) {
           provider:   routing.provider.providerName,
           latencyMs,
           actionKey:  akey,
+          citations:  ragCtx?.citations ?? undefined,
+        }).then(() => {
+          // Schedule memory summarization after saving
+          maybeScheduleSummary(convId, sid)
         }).catch(console.error)
       }
 
@@ -155,7 +172,9 @@ export async function POST(req: NextRequest) {
         status:         usageStatus,
         pageModule:     mod,
         actionKey:      akey,
-      }).catch(console.error)
+        ragChunksUsed:  ragCtx?.chunksUsed,
+        ragLatencyMs:   ragCtx?.latencyMs,
+      } as Parameters<typeof logUsage>[0]).catch(console.error)
 
       send({ done: true })
       ctrl.close()

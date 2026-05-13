@@ -43,6 +43,7 @@ export default function BirdyPanel({ open, onClose }: Props) {
   const [showHistory,    setShowHistory]    = useState(false)
   const [error,          setError]          = useState<string | null>(null)
   const [inputValue,     setInputValue]     = useState('')
+  const [lastCitations, setLastCitations] = useState<Array<{index:number;documentName:string;score:number}>>([])
   const [slashCmds,      setSlashCmds]      = useState<SlashCommand[]>([])
   const [slashActive,    setSlashActive]    = useState(-1)
   const [pageModule,     setPageModule]     = useState('unknown')
@@ -100,7 +101,7 @@ export default function BirdyPanel({ open, onClose }: Props) {
       const res = await fetch('/api/birdy/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: trimmed, conversationId: activeConvId, sessionId, pageModule, actionKey }),
+        body: JSON.stringify({ message: trimmed, conversationId: activeConvId, sessionId, pageModule, actionKey, namespace: 'default' }),
         signal: abortRef.current.signal,
       })
       if (res.status === 429) {
@@ -131,6 +132,7 @@ export default function BirdyPanel({ open, onClose }: Props) {
               })
             }
             if (d.model) model = d.model
+            if (d.citations) setLastCitations(d.citations)
             if (d.delta) setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: m.content + d.delta } : m))
             if (d.error) setError(d.error)
             if (d.done)  setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, isStreaming: false, modelUsed: model } : m))
