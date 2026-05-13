@@ -1,113 +1,118 @@
 /**
- * Birdy database operations — all queries go through here.
- * Keeps DB access explicit, paginated, and safe.
+ * lib/birdy/db.ts
+ * Birdy database operations — single source of truth for all Birdy queries.
  */
 
 import { prisma } from '@/lib/prisma'
 import type { BirdyRole } from '@prisma/client'
 
-const MAX_MESSAGES_PER_CONV = 20   // conversation window limit
-const MAX_CONVERSATIONS = 30       // max conversations per session
-const CONV_EXPIRE_DAYS = 30        // prune conversations older than this
+const MAX_MESSAGES_PER_CONV = 20
+const MAX_CONVERSATIONS      = 30
+const CONV_EXPIRE_DAYS        = 30
 
-// ── Conversations ────────────────────────────────────────────────────────────
+// ── Conversations ─────────────────────────────────────────────────────────────
 
 export async function getConversations(sessionId: string) {
   return prisma.birdyConversation.findMany({
-    where: { sessionId },
+    where:   { sessionId },
     orderBy: { updatedAt: 'desc' },
-    take: MAX_CONVERSATIONS,
+    take:    MAX_CONVERSATIONS,
     select: {
-      id: true,
-      title: true,
+      id:        true,
+      title:     true,
+      module:    true,
       createdAt: true,
       updatedAt: true,
-      _count: { select: { messages: true } },
+      _count:    { select: { messages: true } },
     },
   })
 }
 
-export async function createConversation(sessionId: string, firstMessage?: string) {
+export async function createConversation(sessionId: string, firstMessage?: string, module?: string) {
   const title = firstMessage
     ? firstMessage.slice(0, 60).trim() + (firstMessage.length > 60 ? '…' : '')
     : 'New conversation'
-
   return prisma.birdyConversation.create({
-    data: { sessionId, title },
+    data:   { sessionId, title, module },
     select: { id: true, title: true, createdAt: true },
   })
 }
 
 export async function getConversation(id: string, sessionId: string) {
-  return prisma.birdyConversation.findFirst({
-    where: { id, sessionId }, // sessionId scoping prevents cross-session access
-  })
+  return prisma.birdyConversation.findFirst({ where: { id, sessionId } })
 }
 
-// ── Messages ─────────────────────────────────────────────────────────────────
+// ── Messages ──────────────────────────────────────────────────────────────────
 
 export async function getMessages(conversationId: string, sessionId: string) {
-  // Verify conversation belongs to this session
   const conv = await getConversation(conversationId, sessionId)
   if (!conv) return null
-
   return prisma.birdyMessage.findMany({
-    where: { conversationId },
+    where:   { conversationId },
     orderBy: { createdAt: 'asc' },
-    take: MAX_MESSAGES_PER_CONV,   // cap to avoid huge history payloads
-    select: {
-      id: true,
-      role: true,
-      content: true,
-      modelUsed: true,
-      provider: true,
-      createdAt: true,
-    },
+    take:    MAX_MESSAGES_PER_CONV,
+    select:  { id: true, role: true, content: true, modelUsed: true, provider: true, actionKey: true, createdAt: true },
   })
 }
 
 export async function getMessageHistory(conversationId: string) {
-  // Returns last N messages for AI context — minimal fields only
   const msgs = await prisma.birdyMessage.findMany({
-    where: { conversationId },
+    where:   { conversationId },
     orderBy: { createdAt: 'asc' },
-    take: MAX_MESSAGES_PER_CONV,
-    select: { role: true, content: true },
+    take:    MAX_MESSAGES_PER_CONV,
+    select:  { role: true, content: true },
   })
-
   return msgs.map(m => ({
-    role: m.role === 'USER' ? 'user' as const : 'assistant' as const,
+    role:    m.role === 'USER' ? 'user' as const : 'assistant' as const,
     content: m.content,
   }))
 }
 
 export async function saveMessage(data: {
   conversationId: string
-  role: BirdyRole
-  content: string
-  modelUsed?: string
-  provider?: string
-  tokensIn?: number
-  tokensOut?: number
-  latencyMs?: number
+  role:           BirdyRole
+  content:        string
+  modelUsed?:     string
+  provider?:      string
+  tokensIn?:      number
+  tokensOut?:     number
+  latencyMs?:     number
+  actionKey?:     string
 }) {
   const [message] = await prisma.$transaction([
     prisma.birdyMessage.create({ data }),
-    // Touch the conversation updatedAt so it sorts to top
     prisma.birdyConversation.update({
       where: { id: data.conversationId },
-      data: { updatedAt: new Date() },
+      data:  { updatedAt: new Date() },
     }),
   ])
   return message
 }
 
-// ── Maintenance ───────────────────────────────────────────────────────────────
+// ── Knowledge base ────────────────────────────────────────────────────────────
 
-/**
- * Prune old conversations — call this from a cron or periodically.
- * Deletes conversations older than CONV_EXPIRE_DAYS with no recent messages.
- */
+export async function getDocuments(sessionId: string) {
+  return prisma.birdyDocument.findMany({
+    where:   { sessionId },
+    orderBy: { createdAt: 'desc' },
+    take:    50,
+    select:  { id: true, name: true, mimeType: true, sizeBytes: true, status: true, chunkCount: true, createdAt: true },
+  })
+}
+
+export async function createDocument(data: {
+  sessionId:  string
+  name:       string
+  mimeType:   string
+  sizeBytes?: number
+  storageUrl: string
+  namespace?: string
+}) {
+  return prisma.birdyDocument.create({ data })
+}
+
+// ── Maintenance ────────────────────────────────────────────────────────────────
+
 export async function pruneOldConversations() {
   const cutoff = new Date(Date.now() - CONV_EXPIRE_DAYS * 24 * 60 * 60 * 1000)
   const { count } = await prisma.birdyConversation.deleteMany({

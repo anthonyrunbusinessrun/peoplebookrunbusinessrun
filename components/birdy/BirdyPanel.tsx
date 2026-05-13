@@ -1,482 +1,426 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import MessageBubble, { type MessageData } from './MessageBubble'
-import ChatInput from './ChatInput'
 import TypingIndicator from './TypingIndicator'
+import QuickActionsView from './QuickActionsView'
+import ActivityFeedView from './ActivityFeedView'
+import KnowledgeView from './KnowledgeView'
+import SlashCommandMenu from './SlashCommandMenu'
+import { filterCommands, type SlashCommand } from '@/lib/birdy/slash-commands'
+import { detectModule } from '@/lib/birdy/context'
+
+type Tab = 'chat' | 'actions' | 'knowledge' | 'activity'
 
 interface Conversation {
-  id: string
-  title: string | null
-  updatedAt: string
-  _count: { messages: number }
+  id: string; title: string | null; module: string | null
+  updatedAt: string; _count: { messages: number }
 }
 
-interface Props {
-  open: boolean
-  onClose: () => void
-}
+interface Props { open: boolean; onClose: () => void }
 
-// Persist sessionId in localStorage — scopes conversations to this browser
 function getOrCreateSessionId(): string {
   if (typeof window === 'undefined') return ''
-  const key = 'birdy_session'
-  let id = localStorage.getItem(key)
-  if (!id) {
-    id = crypto.randomUUID()
-    localStorage.setItem(key, id)
-  }
+  const k = 'birdy_session'
+  let id = localStorage.getItem(k)
+  if (!id) { id = crypto.randomUUID(); localStorage.setItem(k, id) }
   return id
 }
 
+const TAB_ICONS: Record<Tab, string> = {
+  chat:     'M3 3h18v14H3V3zm0 14l3 4 3-4',
+  actions:  'M13 2L3 14h9l-1 8 10-12h-9z',
+  knowledge:'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z',
+  activity: 'M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4',
+}
+
 export default function BirdyPanel({ open, onClose }: Props) {
-  const [sessionId, setSessionId] = useState('')
-  const [conversations, setConversations] = useState<Conversation[]>([])
-  const [activeConvId, setActiveConvId] = useState<string | null>(null)
-  const [messages, setMessages] = useState<MessageData[]>([])
-  const [isStreaming, setIsStreaming] = useState(false)
-  const [showHistory, setShowHistory] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const bottomRef = useRef<HTMLDivElement>(null)
-  const abortRef = useRef<AbortController | null>(null)
+  const [sessionId,      setSessionId]      = useState('')
+  const [tab,            setTab]            = useState<Tab>('chat')
+  const [conversations,  setConversations]  = useState<Conversation[]>([])
+  const [activeConvId,   setActiveConvId]   = useState<string | null>(null)
+  const [messages,       setMessages]       = useState<MessageData[]>([])
+  const [isStreaming,    setIsStreaming]     = useState(false)
+  const [showHistory,    setShowHistory]    = useState(false)
+  const [error,          setError]          = useState<string | null>(null)
+  const [inputValue,     setInputValue]     = useState('')
+  const [slashCmds,      setSlashCmds]      = useState<SlashCommand[]>([])
+  const [slashActive,    setSlashActive]    = useState(-1)
+  const [pageModule,     setPageModule]     = useState('unknown')
+
+  const bottomRef  = useRef<HTMLDivElement>(null)
+  const abortRef   = useRef<AbortController | null>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => { setSessionId(getOrCreateSessionId()) }, [])
 
   useEffect(() => {
-    setSessionId(getOrCreateSessionId())
+    if (typeof window !== 'undefined') {
+      const ctx = detectModule(window.location.pathname)
+      setPageModule(ctx.module)
+    }
   }, [])
 
-  // Load conversation history when panel opens
   useEffect(() => {
     if (!open || !sessionId) return
     fetch(`/api/birdy/conversations?sessionId=${sessionId}`)
-      .then(r => r.json())
-      .then(d => setConversations(d.conversations ?? []))
-      .catch(() => {})
+      .then(r => r.json()).then(d => setConversations(d.conversations ?? [])).catch(() => {})
   }, [open, sessionId])
 
-  // Scroll to bottom when messages change
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
   const loadConversation = useCallback(async (convId: string) => {
-    setActiveConvId(convId)
-    setMessages([])
-    setShowHistory(false)
+    setActiveConvId(convId); setMessages([]); setShowHistory(false)
     try {
       const res = await fetch(`/api/birdy/conversations/${convId}/messages?sessionId=${sessionId}`)
-      const data = await res.json()
-      if (data.messages) {
-        setMessages(data.messages.map((m: MessageData & { role: string }) => ({
-          ...m,
-          role: m.role.toUpperCase() as 'USER' | 'ASSISTANT',
-        })))
-      }
-    } catch {
-      setError('Could not load conversation.')
-    }
+      const d   = await res.json()
+      if (d.messages) setMessages(d.messages.map((m: MessageData & { role: string }) => ({
+        ...m, role: m.role.toUpperCase() as 'USER' | 'ASSISTANT',
+      })))
+    } catch { setError('Could not load conversation.') }
   }, [sessionId])
 
-  const startNewConversation = () => {
-    abortRef.current?.abort()
-    setActiveConvId(null)
-    setMessages([])
-    setIsStreaming(false)
-    setError(null)
+  const startNew = () => {
+    abortRef.current?.abort(); setActiveConvId(null); setMessages([])
+    setIsStreaming(false); setError(null); setInputValue('')
   }
 
-  const sendMessage = useCallback(async (message: string) => {
-    if (isStreaming || !sessionId) return
-    setError(null)
-    setIsStreaming(true)
+  const sendMessage = useCallback(async (message: string, actionKey?: string) => {
+    if (isStreaming || !sessionId || !message.trim()) return
+    setError(null); setIsStreaming(true)
+    if (tab !== 'chat') setTab('chat')
 
-    const userMsg: MessageData = {
-      id: crypto.randomUUID(),
-      role: 'USER',
-      content: message,
-    }
-
+    const trimmed = message.trim()
+    const userMsg: MessageData = { id: crypto.randomUUID(), role: 'USER', content: trimmed, actionKey }
     const assistantId = crypto.randomUUID()
-    const assistantMsg: MessageData = {
-      id: assistantId,
-      role: 'ASSISTANT',
-      content: '',
-      isStreaming: true,
-    }
-
+    const assistantMsg: MessageData = { id: assistantId, role: 'ASSISTANT', content: '', isStreaming: true }
     setMessages(prev => [...prev, userMsg, assistantMsg])
 
     abortRef.current = new AbortController()
-
     try {
       const res = await fetch('/api/birdy/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message,
-          conversationId: activeConvId,
-          sessionId,
-        }),
+        body: JSON.stringify({ message: trimmed, conversationId: activeConvId, sessionId, pageModule, actionKey }),
         signal: abortRef.current.signal,
       })
-
       if (res.status === 429) {
-        setError('Rate limit reached. Please wait a moment and try again.')
+        setError('Rate limit reached. Please wait a moment.')
         setMessages(prev => prev.filter(m => m.id !== assistantId))
-        setIsStreaming(false)
-        return
+        setIsStreaming(false); return
       }
-
-      if (!res.ok || !res.body) {
-        throw new Error('Stream failed')
-      }
+      if (!res.ok || !res.body) throw new Error('Stream failed')
 
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
-      let buf = ''
-      let model: string | undefined
+      let buf = '', model: string | undefined
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
         buf += decoder.decode(value, { stream: true })
-        const lines = buf.split('\n')
-        buf = lines.pop() ?? ''
-
+        const lines = buf.split('\n'); buf = lines.pop() ?? ''
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue
           try {
-            const data = JSON.parse(line.slice(6))
-
-            if (data.conversationId && !activeConvId) {
-              setActiveConvId(data.conversationId)
-              // Add to conversations list
+            const d = JSON.parse(line.slice(6))
+            if (d.conversationId && !activeConvId) {
+              setActiveConvId(d.conversationId)
               setConversations(prev => {
-                const exists = prev.find(c => c.id === data.conversationId)
-                if (exists) return prev
-                return [{
-                  id: data.conversationId,
-                  title: message.slice(0, 60),
-                  updatedAt: new Date().toISOString(),
-                  _count: { messages: 1 },
-                }, ...prev]
+                if (prev.find(c => c.id === d.conversationId)) return prev
+                return [{ id: d.conversationId, title: trimmed.slice(0, 55), module: pageModule, updatedAt: new Date().toISOString(), _count: { messages: 1 } }, ...prev]
               })
             }
-
-            if (data.model) model = data.model
-
-            if (data.delta) {
-              setMessages(prev => prev.map(m =>
-                m.id === assistantId
-                  ? { ...m, content: m.content + data.delta }
-                  : m
-              ))
-            }
-
-            if (data.error) {
-              setError(data.error)
-            }
-
-            if (data.done) {
-              setMessages(prev => prev.map(m =>
-                m.id === assistantId
-                  ? { ...m, isStreaming: false, modelUsed: model }
-                  : m
-              ))
-            }
-          } catch { /* skip malformed */ }
+            if (d.model) model = d.model
+            if (d.delta) setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: m.content + d.delta } : m))
+            if (d.error) setError(d.error)
+            if (d.done)  setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, isStreaming: false, modelUsed: model } : m))
+          } catch {}
         }
       }
     } catch (err) {
       if ((err as Error).name !== 'AbortError') {
-        setMessages(prev => prev.map(m =>
-          m.id === assistantId
-            ? { ...m, content: 'Sorry, something went wrong. Please try again.', isStreaming: false }
-            : m
-        ))
+        setMessages(prev => prev.map(m => m.id === assistantId
+          ? { ...m, content: 'Something went wrong. Please try again.', isStreaming: false } : m))
       }
-    } finally {
-      setIsStreaming(false)
+    } finally { setIsStreaming(false) }
+  }, [activeConvId, isStreaming, sessionId, pageModule, tab])
+
+  const handleAction = (prompt: string, actionKey: string) => { sendMessage(prompt, actionKey) }
+
+  const handleInputChange = (v: string) => {
+    setInputValue(v)
+    if (v.startsWith('/') && !v.includes(' ')) {
+      const filtered = filterCommands(v)
+      setSlashCmds(filtered); setSlashActive(filtered.length > 0 ? 0 : -1)
+    } else { setSlashCmds([]); setSlashActive(-1) }
+  }
+
+  const handleSlashSelect = (cmd: SlashCommand) => {
+    setInputValue(cmd.template); setSlashCmds([]); setSlashActive(-1)
+    setTimeout(() => textareaRef.current?.focus(), 0)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (slashCmds.length > 0) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); setSlashActive(i => Math.min(i + 1, slashCmds.length - 1)) }
+      if (e.key === 'ArrowUp')   { e.preventDefault(); setSlashActive(i => Math.max(i - 1, 0)) }
+      if (e.key === 'Tab' || e.key === 'Enter') {
+        e.preventDefault()
+        if (slashActive >= 0) handleSlashSelect(slashCmds[slashActive])
+        return
+      }
+      if (e.key === 'Escape') { setSlashCmds([]); setSlashActive(-1); return }
     }
-  }, [activeConvId, isStreaming, sessionId])
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      if (inputValue.trim() && !isStreaming) { sendMessage(inputValue); setInputValue('') }
+    }
+  }
+
+  const handleSend = () => {
+    if (inputValue.trim() && !isStreaming) { sendMessage(inputValue); setInputValue('') }
+  }
+
+  const handleTextareaInput = () => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 160) + 'px'
+    }
+  }
+
+  const pageCtx = detectModule(pageModule)
 
   if (!open) return null
 
   return (
     <>
       <style>{`
-        @keyframes birdy-slide-in {
-          from { transform: translateX(100%); opacity: 0; }
-          to   { transform: translateX(0);    opacity: 1; }
-        }
-        @keyframes birdy-fade-in {
-          from { opacity: 0; }
-          to   { opacity: 1; }
-        }
-        .birdy-overlay {
-          position: fixed; inset: 0; z-index: 9998;
-          background: rgba(5,9,49,0.5);
-          animation: birdy-fade-in 0.2s ease;
-          backdrop-filter: blur(2px);
-        }
-        .birdy-panel {
-          position: fixed; top: 0; right: 0; bottom: 0;
-          width: 420px; max-width: 100vw;
-          z-index: 9999;
-          display: flex; flex-direction: column;
-          background: #0d1f3c;
-          border-left: 1px solid rgba(183,0,0,0.35);
-          animation: birdy-slide-in 0.25s cubic-bezier(0.25,0.46,0.45,0.94);
-          box-shadow: -8px 0 40px rgba(5,9,49,0.6);
-        }
-        .birdy-header {
-          display: flex; align-items: center; justify-content: space-between;
-          padding: 0 16px;
-          height: 56px;
-          background: linear-gradient(135deg, #0a1628, #182f64);
-          border-bottom: 1px solid rgba(183,0,0,0.4);
-          flex-shrink: 0;
-        }
-        .birdy-header-left { display: flex; align-items: center; gap: 10px; }
-        .birdy-logo {
-          width: 30px; height: 30px; border-radius: 8px;
-          background: linear-gradient(135deg, #b70000, #7e0606);
-          display: flex; align-items: center; justify-content: center;
-          font-size: 15px; flex-shrink: 0;
-        }
-        .birdy-title {
-          font-family: 'Rajdhani', sans-serif;
-          font-weight: 700; font-size: 16px;
-          letter-spacing: 0.12em; text-transform: uppercase;
-          color: #fff;
-        }
-        .birdy-subtitle {
-          font-family: 'Lato', sans-serif;
-          font-size: 10px; color: rgba(255,255,255,0.4);
-          letter-spacing: 0.08em; text-transform: uppercase;
-        }
-        .birdy-header-btn {
-          background: none; border: none; cursor: pointer;
-          color: rgba(255,255,255,0.5); padding: 6px;
-          border-radius: 6px; transition: all 0.15s;
-          display: flex; align-items: center; justify-content: center;
-        }
-        .birdy-header-btn:hover { color: #fff; background: rgba(255,255,255,0.07); }
-        .birdy-history-sidebar {
-          width: 160px; flex-shrink: 0;
-          background: #071020;
-          border-right: 1px solid rgba(255,255,255,0.06);
-          overflow-y: auto;
-          display: flex; flex-direction: column;
-        }
-        .birdy-history-header {
-          padding: 12px 12px 8px;
-          font-family: 'Lato', sans-serif; font-size: 10px; font-weight: 700;
-          letter-spacing: 0.12em; text-transform: uppercase;
-          color: rgba(255,255,255,0.3);
-          border-bottom: 1px solid rgba(255,255,255,0.05);
-        }
-        .birdy-conv-item {
-          padding: 10px 12px;
-          font-family: 'Lato', sans-serif; font-size: 12px;
-          color: rgba(255,255,255,0.55);
-          cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.04);
-          transition: all 0.12s;
-          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-          line-height: 1.4;
-        }
-        .birdy-conv-item:hover { background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.85); }
-        .birdy-conv-item.active { background: rgba(183,0,0,0.15); color: #e8c96b; border-left: 2px solid #b70000; }
-        .birdy-new-conv-btn {
-          margin: 10px;
-          padding: 8px 0;
-          font-family: 'Lato', sans-serif; font-size: 11px; font-weight: 700;
-          letter-spacing: 0.1em; text-transform: uppercase;
-          color: rgba(255,255,255,0.4);
-          background: rgba(255,255,255,0.05);
-          border: 1px solid rgba(255,255,255,0.08);
-          border-radius: 6px; cursor: pointer; transition: all 0.15s;
-          display: flex; align-items: center; justify-content: center; gap: 5px;
-        }
-        .birdy-new-conv-btn:hover { color: #fff; background: rgba(183,0,0,0.2); border-color: rgba(183,0,0,0.4); }
-        .birdy-body {
-          flex: 1; display: flex; overflow: hidden;
-        }
-        .birdy-chat-area {
-          flex: 1; display: flex; flex-direction: column; overflow: hidden;
-        }
-        .birdy-messages {
-          flex: 1; overflow-y: auto;
-          padding: 16px 14px;
-          display: flex; flex-direction: column; gap: 14px;
-          scroll-behavior: smooth;
-        }
-        .birdy-messages::-webkit-scrollbar { width: 4px; }
-        .birdy-messages::-webkit-scrollbar-track { background: transparent; }
-        .birdy-messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
-        .birdy-empty {
-          flex: 1; display: flex; align-items: center; justify-content: center;
-          flex-direction: column; text-align: center; padding: 32px;
-          color: rgba(255,255,255,0.3);
-        }
-        .birdy-empty-icon {
-          width: 52px; height: 52px; border-radius: 14px;
-          background: linear-gradient(135deg, rgba(183,0,0,0.2), rgba(126,6,6,0.15));
-          border: 1px solid rgba(183,0,0,0.25);
-          display: flex; align-items: center; justify-content: center;
-          font-size: 24px; margin: 0 auto 16px;
-        }
-        .birdy-empty-title {
-          font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 17px;
-          letter-spacing: 0.08em; text-transform: uppercase;
-          color: rgba(255,255,255,0.7); margin-bottom: 8px;
-        }
-        .birdy-empty-sub {
-          font-family: 'Lato', sans-serif; font-size: 13px; line-height: 1.6;
-          color: rgba(255,255,255,0.3);
-        }
-        .birdy-error {
-          margin: 0 14px 10px;
-          padding: 8px 12px;
-          background: rgba(183,0,0,0.15);
-          border: 1px solid rgba(183,0,0,0.3);
-          border-radius: 8px;
-          font-family: 'Lato', sans-serif; font-size: 12px;
-          color: #ff8080;
-          display: flex; align-items: center; justify-content: space-between; gap: 8px;
-        }
-        .birdy-streaming-indicator {
-          padding: 0 14px 4px;
-          font-family: 'Lato', sans-serif; font-size: 11px;
-          color: rgba(232,201,107,0.5);
-          letter-spacing: 0.06em;
-          display: flex; align-items: center; gap: 6px;
-        }
-        @media (max-width: 480px) {
-          .birdy-panel { width: 100vw; }
-          .birdy-history-sidebar { width: 140px; }
-        }
+        @keyframes b-slide { from { transform:translateX(100%); opacity:0 } to { transform:translateX(0); opacity:1 } }
+        @keyframes b-fade  { from { opacity:0 } to { opacity:1 } }
+        .b-overlay { position:fixed; inset:0; z-index:9998; background:rgba(5,9,49,.5); animation:b-fade .2s ease; backdrop-filter:blur(2px); }
+        .b-panel { position:fixed; top:0; right:0; bottom:0; width:520px; max-width:100vw; z-index:9999; display:flex; flex-direction:column; background:#0b1829; border-left:1px solid rgba(183,0,0,.3); animation:b-slide .24s cubic-bezier(.25,.46,.45,.94); box-shadow:-12px 0 48px rgba(5,9,49,.7); }
+        /* Header */
+        .b-header { display:flex; flex-direction:column; background:linear-gradient(135deg,#0a1628,#0f2040); border-bottom:1px solid rgba(183,0,0,.3); flex-shrink:0; }
+        .b-header-top { display:flex; align-items:center; justify-content:space-between; padding:12px 16px 0; }
+        .b-header-left { display:flex; align-items:center; gap:10px; }
+        .b-logo { width:28px; height:28px; border-radius:7px; background:linear-gradient(135deg,#b70000,#7e0606); display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
+        .b-brand { display:flex; flex-direction:column; }
+        .b-title { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:15px; letter-spacing:.14em; text-transform:uppercase; color:#fff; line-height:1.1; }
+        .b-subtitle { font-family:'Lato',sans-serif; font-size:9px; color:rgba(255,255,255,.35); letter-spacing:.1em; text-transform:uppercase; }
+        .b-ctx-pill { display:flex; align-items:center; gap:5px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08); border-radius:20px; padding:3px 10px; }
+        .b-ctx-dot { width:5px; height:5px; border-radius:50%; background:#4caf78; flex-shrink:0; }
+        .b-ctx-label { font-family:'Lato',sans-serif; font-size:10px; color:rgba(255,255,255,.45); letter-spacing:.06em; text-transform:uppercase; }
+        .b-header-btns { display:flex; align-items:center; gap:2px; }
+        .b-hbtn { background:none; border:none; cursor:pointer; color:rgba(255,255,255,.45); padding:6px; border-radius:6px; transition:all .15s; display:flex; align-items:center; justify-content:center; }
+        .b-hbtn:hover { color:#fff; background:rgba(255,255,255,.07); }
+        /* Tabs */
+        .b-tabs { display:flex; align-items:center; gap:0; padding:0 12px; margin-top:10px; border-top:1px solid rgba(255,255,255,.05); }
+        .b-tab { display:flex; align-items:center; gap:6px; padding:9px 12px; font-family:'Lato',sans-serif; font-size:11px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:rgba(255,255,255,.35); cursor:pointer; border-bottom:2px solid transparent; transition:all .15s; background:none; border-top:none; border-left:none; border-right:none; }
+        .b-tab:hover { color:rgba(255,255,255,.7); }
+        .b-tab.active { color:#e8c96b; border-bottom-color:#b70000; }
+        /* Body */
+        .b-body { flex:1; display:flex; overflow:hidden; }
+        /* History sidebar */
+        .b-hist { width:165px; flex-shrink:0; background:#071020; border-right:1px solid rgba(255,255,255,.05); overflow-y:auto; display:flex; flex-direction:column; }
+        .b-hist-hdr { padding:10px 12px 7px; font-family:'Lato',sans-serif; font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:rgba(255,255,255,.25); border-bottom:1px solid rgba(255,255,255,.05); }
+        .b-new-btn { margin:8px; padding:7px; font-family:'Lato',sans-serif; font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:rgba(255,255,255,.35); background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:6px; cursor:pointer; transition:all .15s; display:flex; align-items:center; justify-content:center; gap:4px; }
+        .b-new-btn:hover { color:#fff; background:rgba(183,0,0,.2); border-color:rgba(183,0,0,.4); }
+        .b-conv-item { padding:9px 12px; font-family:'Lato',sans-serif; font-size:11px; color:rgba(255,255,255,.45); cursor:pointer; border-bottom:1px solid rgba(255,255,255,.03); transition:all .12s; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.4; }
+        .b-conv-item:hover { background:rgba(255,255,255,.04); color:rgba(255,255,255,.8); }
+        .b-conv-item.active { background:rgba(183,0,0,.12); color:#e8c96b; border-left:2px solid #b70000; padding-left:10px; }
+        /* Chat area */
+        .b-chat { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+        .b-msgs { flex:1; overflow-y:auto; padding:16px 14px; display:flex; flex-direction:column; gap:14px; scroll-behavior:smooth; }
+        .b-msgs::-webkit-scrollbar { width:3px; }
+        .b-msgs::-webkit-scrollbar-thumb { background:rgba(255,255,255,.08); border-radius:2px; }
+        .b-empty { flex:1; display:flex; align-items:center; justify-content:center; flex-direction:column; text-align:center; padding:24px; color:rgba(255,255,255,.25); }
+        .b-empty-icon { width:48px; height:48px; border-radius:12px; background:linear-gradient(135deg,rgba(183,0,0,.18),rgba(126,6,6,.12)); border:1px solid rgba(183,0,0,.22); display:flex; align-items:center; justify-content:center; font-size:22px; margin:0 auto 14px; }
+        .b-empty-title { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:16px; letter-spacing:.08em; text-transform:uppercase; color:rgba(255,255,255,.6); margin-bottom:7px; }
+        .b-empty-sub { font-family:'Lato',sans-serif; font-size:12px; line-height:1.6; color:rgba(255,255,255,.25); margin-bottom:16px; }
+        .b-suggestions { display:flex; flex-direction:column; gap:5px; width:100%; max-width:280px; }
+        .b-sug-btn { background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:7px; padding:7px 12px; font-family:'Lato',sans-serif; font-size:12px; color:rgba(255,255,255,.45); cursor:pointer; transition:all .15s; text-align:left; }
+        .b-sug-btn:hover { background:rgba(183,0,0,.12); border-color:rgba(183,0,0,.35); color:rgba(255,255,255,.8); }
+        .b-streaming { padding:0 14px 4px; font-family:'Lato',sans-serif; font-size:11px; color:rgba(232,201,107,.4); letter-spacing:.06em; display:flex; align-items:center; gap:6px; }
+        .b-error { margin:0 14px 8px; padding:8px 12px; background:rgba(183,0,0,.12); border:1px solid rgba(183,0,0,.28); border-radius:8px; font-family:'Lato',sans-serif; font-size:12px; color:#ff8080; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+        /* Input */
+        .b-input-wrap { border-top:1px solid rgba(255,255,255,.07); padding:11px 13px 13px; background:#0a1628; position:relative; }
+        .b-input-row { display:flex; align-items:flex-end; gap:8px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.09); border-radius:10px; padding:9px 11px; transition:border-color .15s; }
+        .b-input-row:focus-within { border-color:rgba(183,0,0,.55); }
+        .b-textarea { flex:1; background:none; border:none; outline:none; resize:none; color:#e2e8f0; font-family:'Lato',sans-serif; font-size:13px; line-height:1.5; min-height:20px; max-height:160px; }
+        .b-textarea::placeholder { color:rgba(255,255,255,.2); }
+        .b-send-btn { width:30px; height:30px; border-radius:7px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all .15s; }
+        .b-send-btn.ready { background:linear-gradient(135deg,#b70000,#7e0606); }
+        .b-send-btn.ready:hover { opacity:.85; }
+        .b-send-btn.idle { background:rgba(255,255,255,.06); cursor:not-allowed; }
+        .b-input-hint { font-family:'Lato',sans-serif; font-size:9px; color:rgba(255,255,255,.15); text-align:center; margin-top:7px; letter-spacing:.05em; }
+        @media (max-width:540px) { .b-panel { width:100vw; } .b-hist { width:140px; } }
       `}</style>
 
-      {/* Backdrop */}
-      <div className="birdy-overlay" onClick={onClose} />
-
-      {/* Panel */}
-      <div className="birdy-panel">
+      <div className="b-overlay" onClick={onClose} />
+      <div className="b-panel">
 
         {/* Header */}
-        <div className="birdy-header">
-          <div className="birdy-header-left">
-            <button
-              className="birdy-header-btn"
-              onClick={() => setShowHistory(!showHistory)}
-              title="Conversation history"
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M2 4h12M2 8h8M2 12h10" strokeLinecap="round"/>
-              </svg>
-            </button>
-            <div>
-              <div className="birdy-title">Birdy</div>
-              <div className="birdy-subtitle">Rayland AI Assistant</div>
+        <div className="b-header">
+          <div className="b-header-top">
+            <div className="b-header-left">
+              <button className="b-hbtn" onClick={() => setShowHistory(s => !s)} title="History">
+                <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M1.5 3.5h12M1.5 7.5h8M1.5 11.5h10" strokeLinecap="round"/>
+                </svg>
+              </button>
+              <div className="b-brand">
+                <div className="b-title">Birdy</div>
+                <div className="b-subtitle">Rayland AI Operating Layer</div>
+              </div>
+              <div className="b-ctx-pill">
+                <div className="b-ctx-dot" />
+                <div className="b-ctx-label">{pageCtx.label}</div>
+              </div>
+            </div>
+            <div className="b-header-btns">
+              <button className="b-hbtn" onClick={startNew} title="New conversation">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M7 1v12M1 7h12" strokeLinecap="round"/>
+                </svg>
+              </button>
+              <button className="b-hbtn" onClick={onClose} title="Close (Esc)">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M2 2l10 10M12 2L2 12" strokeLinecap="round"/>
+                </svg>
+              </button>
             </div>
           </div>
 
-          <div style={{ display:'flex', alignItems:'center', gap:4 }}>
-            <button
-              className="birdy-header-btn"
-              onClick={startNewConversation}
-              title="New conversation"
-            >
-              <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M7.5 2v11M2 7.5h11" strokeLinecap="round"/>
-              </svg>
-            </button>
-            <button className="birdy-header-btn" onClick={onClose} title="Close (Esc)">
-              <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M2 2l11 11M13 2L2 13" strokeLinecap="round"/>
-              </svg>
-            </button>
+          {/* Tab bar */}
+          <div className="b-tabs">
+            {(['chat', 'actions', 'knowledge', 'activity'] as Tab[]).map(t => (
+              <button key={t} className={`b-tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>
+                {t === 'chat'     && '💬'}
+                {t === 'actions'  && '⚡'}
+                {t === 'knowledge' && '📚'}
+                {t === 'activity' && '📊'}
+                {t.charAt(0).toUpperCase() + t.slice(1)}
+              </button>
+            ))}
           </div>
         </div>
 
         {/* Body */}
-        <div className="birdy-body">
-
-          {/* Conversation history sidebar */}
-          {showHistory && (
-            <div className="birdy-history-sidebar">
-              <div className="birdy-history-header">History</div>
-              <button className="birdy-new-conv-btn" onClick={startNewConversation}>
-                <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M5.5 1v9M1 5.5h9" strokeLinecap="round"/>
-                </svg>
-                New chat
-              </button>
+        <div className="b-body">
+          {/* History sidebar (chat tab only) */}
+          {showHistory && tab === 'chat' && (
+            <div className="b-hist">
+              <div className="b-hist-hdr">History</div>
+              <button className="b-new-btn" onClick={startNew}>+ New</button>
               {conversations.map(conv => (
-                <div
-                  key={conv.id}
-                  className={`birdy-conv-item ${conv.id === activeConvId ? 'active' : ''}`}
+                <div key={conv.id}
+                  className={`b-conv-item ${conv.id === activeConvId ? 'active' : ''}`}
                   onClick={() => loadConversation(conv.id)}
-                  title={conv.title ?? 'Conversation'}
-                >
+                  title={conv.title ?? 'Conversation'}>
                   {conv.title ?? 'Conversation'}
                 </div>
               ))}
               {!conversations.length && (
-                <div style={{ padding:'12px', fontSize:11, color:'rgba(255,255,255,0.2)', fontFamily:'Lato,sans-serif' }}>
-                  No conversations yet
-                </div>
+                <div style={{ padding:'12px', fontSize:10, color:'rgba(255,255,255,.18)', fontFamily:'Lato,sans-serif' }}>No conversations yet</div>
               )}
             </div>
           )}
 
-          {/* Main chat area */}
-          <div className="birdy-chat-area">
-            <div className="birdy-messages">
-              {!messages.length ? (
-                <div className="birdy-empty">
-                  <div className="birdy-empty-icon">🐦</div>
-                  <div className="birdy-empty-title">Birdy is ready</div>
-                  <div className="birdy-empty-sub">
-                    Ask about open roles, recruiting tasks,<br />
-                    or anything Rayland-related.
+          {/* Chat view */}
+          {tab === 'chat' && (
+            <div className="b-chat">
+              <div className="b-msgs">
+                {!messages.length ? (
+                  <div className="b-empty">
+                    <div className="b-empty-icon">🐦</div>
+                    <div className="b-empty-title">Birdy is ready</div>
+                    <div className="b-empty-sub">
+                      Enterprise AI for Rayland operations.<br/>Type a message or try a suggestion.
+                    </div>
+                    <div className="b-suggestions">
+                      {pageCtx.suggestions.map(s => (
+                        <button key={s} className="b-sug-btn" onClick={() => sendMessage(s)}>{s}</button>
+                      ))}
+                    </div>
                   </div>
+                ) : (
+                  messages.map(msg => (
+                    <div key={msg.id}>
+                      {msg.isStreaming && !msg.content
+                        ? <TypingIndicator />
+                        : <MessageBubble message={msg} />}
+                    </div>
+                  ))
+                )}
+                <div ref={bottomRef} />
+              </div>
+
+              {isStreaming && (
+                <div className="b-streaming">
+                  <TypingIndicator />
+                  <span>Birdy is thinking…</span>
                 </div>
-              ) : (
-                messages.map(msg => (
-                  <div key={msg.id}>
-                    {msg.isStreaming && !msg.content ? (
-                      <TypingIndicator />
-                    ) : (
-                      <MessageBubble message={msg} />
-                    )}
-                  </div>
-                ))
               )}
-              <div ref={bottomRef} />
+
+              {error && (
+                <div className="b-error">
+                  <span>{error}</span>
+                  <button onClick={() => setError(null)} style={{ background:'none', border:'none', cursor:'pointer', color:'inherit', padding:0, fontSize:15 }}>×</button>
+                </div>
+              )}
+
+              {/* Input */}
+              <div className="b-input-wrap">
+                {slashCmds.length > 0 && (
+                  <SlashCommandMenu commands={slashCmds} activeIdx={slashActive} onSelect={handleSlashSelect} />
+                )}
+                <div className="b-input-row">
+                  <textarea
+                    ref={textareaRef}
+                    className="b-textarea"
+                    value={inputValue}
+                    onChange={e => handleInputChange(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    onInput={handleTextareaInput}
+                    placeholder={isStreaming ? 'Birdy is responding…' : 'Ask Birdy anything… (/ for commands)'}
+                    rows={1}
+                    disabled={isStreaming}
+                  />
+                  <button
+                    className={`b-send-btn ${inputValue.trim() && !isStreaming ? 'ready' : 'idle'}`}
+                    onClick={handleSend}
+                    aria-label="Send"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                      <path d="M1 6.5H12M7.5 2L12 6.5L7.5 11" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                </div>
+                <div className="b-input-hint">Enter to send · Shift+Enter for new line · / for commands</div>
+              </div>
             </div>
+          )}
 
-            {isStreaming && (
-              <div className="birdy-streaming-indicator">
-                <TypingIndicator />
-                <span>Birdy is responding…</span>
-              </div>
-            )}
+          {/* Actions view */}
+          {tab === 'actions' && (
+            <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden' }}>
+              <QuickActionsView onAction={handleAction} />
+            </div>
+          )}
 
-            {error && (
-              <div className="birdy-error">
-                <span>{error}</span>
-                <button
-                  onClick={() => setError(null)}
-                  style={{ background:'none', border:'none', cursor:'pointer', color:'inherit', padding:0, fontSize:14 }}
-                >×</button>
-              </div>
-            )}
+          {/* Knowledge view */}
+          {tab === 'knowledge' && sessionId && (
+            <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden' }}>
+              <KnowledgeView sessionId={sessionId} />
+            </div>
+          )}
 
-            <ChatInput
-              onSend={sendMessage}
-              isStreaming={isStreaming}
-            />
-          </div>
+          {/* Activity view */}
+          {tab === 'activity' && sessionId && (
+            <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden' }}>
+              <ActivityFeedView sessionId={sessionId} />
+            </div>
+          )}
         </div>
       </div>
     </>

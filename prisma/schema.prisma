@@ -115,12 +115,13 @@ model ApplicantSkill {
   @@map("applicant_skills")
 }
 
-// ── Birdy AI models ────────────────────────────────────────────────────────
+// ── Birdy AI — Core ────────────────────────────────────────────────────────
 
 model BirdyConversation {
   id        String         @id @default(cuid())
-  sessionId String         // browser session UUID — scopes conversations per visitor
-  title     String?        // auto-set from first message (first 60 chars)
+  sessionId String
+  title     String?
+  module    String?        // page context: "home" | "apply" | "admin" | etc.
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
   messages  BirdyMessage[]
@@ -133,17 +134,75 @@ model BirdyMessage {
   id             String            @id @default(cuid())
   conversationId String
   role           BirdyRole
-  content        String            // Postgres TEXT — no length limit
-  modelUsed      String?           // e.g. "claude-sonnet-4-20250514" or "phi4"
-  provider       String?           // "claude" | "ollama"
+  content        String
+  modelUsed      String?
+  provider       String?
   tokensIn       Int               @default(0)
   tokensOut      Int               @default(0)
   latencyMs      Int?
+  actionKey      String?           // if triggered by a quick action
   createdAt      DateTime          @default(now())
   conversation   BirdyConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([conversationId, createdAt(sort: Asc)])
   @@map("birdy_messages")
+}
+
+// ── Birdy AI — Observability ───────────────────────────────────────────────
+
+model BirdyUsageLog {
+  id             String   @id @default(cuid())
+  sessionId      String
+  conversationId String?
+  provider       String   // "claude" | "ollama"
+  model          String
+  intent         String?  // "simple" | "code" | "reasoning" | "strategic"
+  tokensIn       Int      @default(0)
+  tokensOut      Int      @default(0)
+  latencyMs      Int?
+  status         String   @default("success")  // "success" | "error" | "fallback"
+  errorMessage   String?
+  pageModule     String?  // which TeamBase module triggered this
+  actionKey      String?  // quick action key if applicable
+  createdAt      DateTime @default(now())
+
+  @@index([sessionId, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+  @@map("birdy_usage_logs")
+}
+
+// ── Birdy AI — Knowledge Base (RAG-ready) ─────────────────────────────────
+
+model BirdyDocument {
+  id          String               @id @default(cuid())
+  sessionId   String
+  name        String
+  mimeType    String
+  sizeBytes   Int?
+  storageUrl  String               // UploadThing URL
+  status      DocumentStatus       @default(PENDING)
+  chunkCount  Int                  @default(0)
+  errorMsg    String?
+  namespace   String               @default("default")
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  chunks      BirdyDocumentChunk[]
+
+  @@index([sessionId, createdAt(sort: Desc)])
+  @@map("birdy_documents")
+}
+
+model BirdyDocumentChunk {
+  id          String        @id @default(cuid())
+  documentId  String
+  chunkIndex  Int
+  content     String
+  tokenCount  Int?
+  createdAt   DateTime      @default(now())
+  document    BirdyDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId, chunkIndex])
+  @@map("birdy_document_chunks")
 }
 
 // ── Enums ──────────────────────────────────────────────────────────────────
@@ -179,4 +238,11 @@ enum RoleLinkType {
 enum BirdyRole {
   USER
   ASSISTANT
+}
+
+enum DocumentStatus {
+  PENDING
+  PROCESSING
+  READY
+  ERROR
 }
