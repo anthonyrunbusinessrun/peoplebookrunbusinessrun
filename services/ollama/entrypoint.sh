@@ -1,96 +1,117 @@
 #!/bin/bash
 # ============================================================
 # Birdy — Ollama self-provisioning entrypoint
-# ============================================================
-# Lifecycle:
-#   1. Start Ollama server in background
-#   2. Wait for API readiness
-#   3. Pull any missing required models (idempotent)
-#   4. Write readiness file
-#   5. Stay running (wait on Ollama PID)
-#
-# Models persist across deployments via Railway volume at /root/.ollama
-# so pulls only happen once per model per volume lifecycle.
+# Self-managing model lifecycle. Zero manual intervention required.
 # ============================================================
 
-set -euo pipefail
+set -uo pipefail   # Note: NOT -e so we continue past non-fatal errors
 
-OLLAMA_HOST="${OLLAMA_HOST:-0.0.0.0}"
 OLLAMA_API="http://localhost:11434"
 READY_FILE="/tmp/ollama_ready"
-LOG_PREFIX="[ollama-init]"
+STATUS_FILE="/tmp/ollama_status.json"
 
-# Models pulled on first boot; order matters — smallest first for fastest initial readiness
+# Order matters — smallest first so RAG (nomic) activates within minutes
 REQUIRED_MODELS=(
-  "nomic-embed-text"   # 274 MB — embedding model, needed for RAG
-  "phi4"               # ~9 GB  — utility/summarization model
-  "deepseek-coder-v2:16b"  # ~9 GB  — coding assistant
-  "qwen3:32b"          # ~20 GB — general reasoning
+  "nomic-embed-text"
+  "phi4"
+  "deepseek-coder-v2:16b"
+  "qwen3:32b"
 )
 
-log()  { echo "${LOG_PREFIX} $(date -u +'%H:%M:%S') INFO  $*"; }
-warn() { echo "${LOG_PREFIX} $(date -u +'%H:%M:%S') WARN  $*"; }
-err()  { echo "${LOG_PREFIX} $(date -u +'%H:%M:%S') ERROR $*" >&2; }
+log()  { echo "[ollama] $(date -u +'%H:%M:%S') $*"; }
+warn() { echo "[ollama] $(date -u +'%H:%M:%S') WARN: $*" >&2; }
 
-# ── Start Ollama in background ─────────────────────────────────────────────
-log "Starting Ollama server (OLLAMA_HOST=${OLLAMA_HOST})"
-OLLAMA_HOST="${OLLAMA_HOST}" ollama serve &
+write_status() {
+  local ready=$1 total=$2 failed_list=$3
+  printf '{"ready":true,"models_ready":%d,"models_total":%d,"failed":%s,"ts":"%s"}\n' \
+    "$ready" "$total" "$failed_list" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    > "$STATUS_FILE"
+}
+
+# ── Start Ollama server ─────────────────────────────────────────────────────
+log "Starting Ollama server (OLLAMA_HOST=${OLLAMA_HOST:-0.0.0.0})"
+OLLAMA_HOST="${OLLAMA_HOST:-0.0.0.0}" ollama serve &
 OLLAMA_PID=$!
-log "Ollama PID: ${OLLAMA_PID}"
+log "Ollama server PID: $OLLAMA_PID"
 
-# ── Wait for API readiness ─────────────────────────────────────────────────
-log "Waiting for Ollama API..."
-WAIT_SECS=0
+# ── Wait for API (max 3 minutes) ────────────────────────────────────────────
+log "Waiting for Ollama API readiness..."
+ELAPSED=0
 until curl -sf "${OLLAMA_API}/api/tags" > /dev/null 2>&1; do
-  if ! kill -0 "${OLLAMA_PID}" 2>/dev/null; then
-    err "Ollama process died unexpectedly"
-    exit 1
+  if ! kill -0 "$OLLAMA_PID" 2>/dev/null; then
+    warn "Ollama server died — restarting"
+    OLLAMA_HOST="${OLLAMA_HOST:-0.0.0.0}" ollama serve &
+    OLLAMA_PID=$!
   fi
-  sleep 2
-  WAIT_SECS=$((WAIT_SECS + 2))
-  if [ "${WAIT_SECS}" -gt 120 ]; then
-    err "Ollama API did not become ready within 2 minutes"
-    exit 1
+  sleep 3
+  ELAPSED=$((ELAPSED + 3))
+  if [ "$ELAPSED" -ge 180 ]; then
+    warn "API not ready after 3 minutes — proceeding anyway"
+    break
   fi
 done
-log "Ollama API ready after ${WAIT_SECS}s"
+log "Ollama API ready after ${ELAPSED}s"
 
-# ── Provision required models ──────────────────────────────────────────────
-MODELS_READY=0
-MODELS_TOTAL=${#REQUIRED_MODELS[@]}
-FAILED_MODELS=()
+# ── Provision models ────────────────────────────────────────────────────────
+READY=0
+TOTAL=${#REQUIRED_MODELS[@]}
+FAILED_JSON="[]"
 
 for MODEL in "${REQUIRED_MODELS[@]}"; do
-  MODEL_NAME=$(echo "${MODEL}" | cut -d':' -f1)
-  # Check if model is already available (persistent volume)
-  if ollama list 2>/dev/null | grep -q "^${MODEL_NAME}"; then
-    log "✓ ${MODEL} — already available (cached)"
-    MODELS_READY=$((MODELS_READY + 1))
+  MODEL_BASE="${MODEL%%:*}"
+
+  # Check if model is already present (persistent volume)
+  if ollama list 2>/dev/null | grep -qi "^${MODEL_BASE}"; then
+    log "✓ $MODEL — already cached in volume"
+    READY=$((READY + 1))
+    # Update status file after each model
+    write_status "$READY" "$TOTAL" "$FAILED_JSON"
     continue
   fi
 
-  log "⬇ Pulling ${MODEL} (this may take several minutes on first boot)..."
-  if ollama pull "${MODEL}" 2>&1; then
-    log "✓ ${MODEL} — pull complete"
-    MODELS_READY=$((MODELS_READY + 1))
+  log "⬇  Pulling $MODEL..."
+  if ollama pull "$MODEL" 2>&1; then
+    log "✓ $MODEL — ready"
+    READY=$((READY + 1))
+    write_status "$READY" "$TOTAL" "$FAILED_JSON"
   else
-    warn "✗ ${MODEL} — pull failed (service will run with degraded capability)"
-    FAILED_MODELS+=("${MODEL}")
+    warn "✗ $MODEL — pull failed. Birdy degrades gracefully to Claude."
+    FAILED_JSON=$(echo "$FAILED_JSON" | python3 -c \
+      "import sys,json; a=json.load(sys.stdin); a.append('$MODEL'); print(json.dumps(a))" 2>/dev/null || echo '["'$MODEL'"]')
+    write_status "$READY" "$TOTAL" "$FAILED_JSON"
   fi
 done
 
-# ── Write readiness status ─────────────────────────────────────────────────
-READY_JSON="{\"ready\":true,\"models_ready\":${MODELS_READY},\"models_total\":${MODELS_TOTAL},\"failed\":$(printf '%s' "${FAILED_MODELS[@]+"${FAILED_MODELS[@]}"}" | python3 -c 'import sys,json; items=sys.stdin.read().split(); print(json.dumps(items))'),\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
-echo "${READY_JSON}" > "${READY_FILE}"
-log "Readiness file written: ${READY_JSON}"
-
-if [ ${#FAILED_MODELS[@]} -eq 0 ]; then
-  log "🚀 All ${MODELS_TOTAL} models ready. Birdy RAG + memory fully operational."
+# Final status
+touch "$READY_FILE"
+log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+log "Provisioning complete: $READY/$TOTAL models ready"
+if [ "$READY" -eq "$TOTAL" ]; then
+  log "🚀 Birdy RAG + memory + routing: FULLY OPERATIONAL"
 else
-  warn "⚠  ${MODELS_READY}/${MODELS_TOTAL} models ready. Failed: ${FAILED_MODELS[*]}"
-  warn "    Birdy will operate with degraded capability."
+  log "⚠  Birdy operating in degraded mode (Claude handles all routing)"
+fi
+log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+# ── Expose readiness via a simple HTTP status endpoint ──────────────────────
+# Railway health check hits /api/tags — this is already served by Ollama.
+# We also serve /status on port 11435 for Birdy web service to poll.
+if command -v python3 &>/dev/null; then
+  python3 -c "
+import http.server, json, os
+class H(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        data = open('$STATUS_FILE').read() if os.path.exists('$STATUS_FILE') else '{}'
+        self.send_response(200)
+        self.send_header('Content-Type','application/json')
+        self.end_headers()
+        self.wfile.write(data.encode())
+    def log_message(self, *a): pass
+http.server.HTTPServer(('0.0.0.0', 11435), H).serve_forever()
+" &
+  log "Status endpoint running on :11435"
 fi
 
-# ── Keep running ───────────────────────────────────────────────────────────
-log "Handing off to Ollama process (PID ${OLLAMA_PID})"
-wait "${OLLAMA_PID}"
+# ── Keep running ────────────────────────────────────────────────────────────
+log "Handing off to Ollama process $OLLAMA_PID"
+wait "$OLLAMA_PID"

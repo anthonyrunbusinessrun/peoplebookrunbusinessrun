@@ -1,0 +1,17 @@
+# nixpacks.toml — Railway build configuration
+# Ensures consistent Node.js version and build behavior
+
+[phases.setup]
+nixPkgs = ["nodejs_20", "openssl"]
+
+[phases.install]
+cmds = ["npm ci --frozen-lockfile"]
+
+[phases.build]
+cmds = [
+  "npx prisma generate",
+  "npx next build"
+]
+
+[start]
+cmd = "npx prisma db push --accept-data-loss && npx next start -p ${PORT:-3000}"
