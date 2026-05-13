@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import BirdyButton from '@/components/birdy/BirdyButton'
 
 export const metadata: Metadata = {
   title: 'PeopleBook — Rayland Inc.',
@@ -13,7 +14,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="icon" href="/favicon.png" type="image/png" sizes="32x32" />
         <link rel="apple-touch-icon" href="/apple-icon.png" />
       </head>
-      <body className="bg-gray-50 text-gray-900 font-sans antialiased">{children}</body>
+      <body className="bg-gray-50 text-gray-900 font-sans antialiased">
+        {children}
+        {/* Birdy AI — mounts outside page flow, fixed position */}
+        <BirdyButton />
+      </body>
     </html>
   )
 }

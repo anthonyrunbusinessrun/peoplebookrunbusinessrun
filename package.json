@@ -29,7 +29,10 @@
     "resend": "^3.2.0",
     "tailwindcss": "^3.4.4",
     "uploadthing": "^7.7.4",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "@anthropic-ai/sdk": "^0.51.0",
+    "react-markdown": "^9.0.1",
+    "remark-gfm": "^4.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.2",

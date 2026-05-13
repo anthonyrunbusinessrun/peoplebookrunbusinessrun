@@ -7,6 +7,8 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ── Existing models ────────────────────────────────────────────────────────
+
 model Role {
   id             String          @id @default(cuid())
   airtableId     String?         @unique
@@ -113,6 +115,39 @@ model ApplicantSkill {
   @@map("applicant_skills")
 }
 
+// ── Birdy AI models ────────────────────────────────────────────────────────
+
+model BirdyConversation {
+  id        String         @id @default(cuid())
+  sessionId String         // browser session UUID — scopes conversations per visitor
+  title     String?        // auto-set from first message (first 60 chars)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  messages  BirdyMessage[]
+
+  @@index([sessionId, updatedAt(sort: Desc)])
+  @@map("birdy_conversations")
+}
+
+model BirdyMessage {
+  id             String            @id @default(cuid())
+  conversationId String
+  role           BirdyRole
+  content        String            // Postgres TEXT — no length limit
+  modelUsed      String?           // e.g. "claude-sonnet-4-20250514" or "phi4"
+  provider       String?           // "claude" | "ollama"
+  tokensIn       Int               @default(0)
+  tokensOut      Int               @default(0)
+  latencyMs      Int?
+  createdAt      DateTime          @default(now())
+  conversation   BirdyConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt(sort: Asc)])
+  @@map("birdy_messages")
+}
+
+// ── Enums ──────────────────────────────────────────────────────────────────
+
 enum RoleStatus {
   OPEN
   ON_HOLD
@@ -139,4 +174,9 @@ enum Stage {
 enum RoleLinkType {
   APPLIED
   CAPABLE
+}
+
+enum BirdyRole {
+  USER
+  ASSISTANT
 }
