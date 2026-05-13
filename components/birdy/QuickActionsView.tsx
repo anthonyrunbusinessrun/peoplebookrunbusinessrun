@@ -3,7 +3,9 @@ import { QUICK_ACTIONS, ACTION_CATEGORIES, type ActionCategory } from '@/lib/bir
 import { useState } from 'react'
 
 interface Props {
-  onAction: (prompt: string, actionKey: string) => void
+  onAction:       (prompt: string, actionKey: string) => void
+  onRunWorkflow?: (workflowId: string, input: Record<string, unknown>) => void
+  sessionId?:     string
 }
 
 const CATEGORY_ORDER: ActionCategory[] = ['recruiting', 'content', 'analysis', 'operations']

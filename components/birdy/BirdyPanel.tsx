@@ -5,11 +5,12 @@ import TypingIndicator from './TypingIndicator'
 import QuickActionsView from './QuickActionsView'
 import ActivityFeedView from './ActivityFeedView'
 import KnowledgeView from './KnowledgeView'
+import AdminView from './AdminView'
 import SlashCommandMenu from './SlashCommandMenu'
 import { filterCommands, type SlashCommand } from '@/lib/birdy/slash-commands'
 import { detectModule } from '@/lib/birdy/context'
 
-type Tab = 'chat' | 'actions' | 'knowledge' | 'activity'
+type Tab = 'chat' | 'actions' | 'knowledge' | 'activity' | 'admin'
 
 interface Conversation {
   id: string; title: string | null; module: string | null
@@ -295,12 +296,13 @@ export default function BirdyPanel({ open, onClose }: Props) {
 
           {/* Tab bar */}
           <div className="b-tabs">
-            {(['chat', 'actions', 'knowledge', 'activity'] as Tab[]).map(t => (
+            {(['chat', 'actions', 'knowledge', 'activity', 'admin'] as Tab[]).map(t => (
               <button key={t} className={`b-tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>
                 {t === 'chat'     && '💬'}
                 {t === 'actions'  && '⚡'}
                 {t === 'knowledge' && '📚'}
                 {t === 'activity' && '📊'}
+                {t === 'admin'    && '⚙️'}
                 {t.charAt(0).toUpperCase() + t.slice(1)}
               </button>
             ))}
@@ -421,6 +423,12 @@ export default function BirdyPanel({ open, onClose }: Props) {
           {tab === 'activity' && sessionId && (
             <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden' }}>
               <ActivityFeedView sessionId={sessionId} />
+            </div>
+          )}
+          {/* Admin view */}
+          {tab === 'admin' && sessionId && (
+            <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden' }}>
+              <AdminView sessionId={sessionId} />
             </div>
           )}
         </div>
