@@ -73,8 +73,8 @@ export async function GET() {
   return NextResponse.json(
     {
       status,
-      service:   'birdy',
-      version:   'production-alpha',
+      service:   'citrus-county-blessings',
+      version:   'production',
       latencyMs,
       checks,
       ts: new Date().toISOString(),
