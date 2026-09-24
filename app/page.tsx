@@ -16,9 +16,8 @@ export default function HomePage() {
             <p>Help us close the <strong>$13.8 million hunger gap</strong> in Citrus County — one weekend bag, one summer of fresh produce, one kid at a time.</p>
             <div className="button-row"><a className="button" href="https://secure.qgiv.com/for/citruscountyblessings/">Donate now</a><Link className="button button-outline" href="/how-to-help#volunteer">Volunteer</Link></div>
           </div>
-          <div className="hero-image-wrap">
-            <Image src="/ccb/hero-children.webp" fill sizes="(max-width: 800px) 90vw, 48vw" alt="Children sharing lunch at school" className="hero-image" priority />
-            <div className="impact-chip"><strong>2,600+</strong><span>students supported weekly across Citrus County</span></div>
+          <div className="hero-figma-art">
+            <Image src="/ccb/hero-figma.jpg" width={620} height={520} sizes="(max-width: 800px) 90vw, 620px" alt="A smiling child enjoying a meal, with 2,600 students supported weekly across Citrus County" priority />
           </div>
         </div>
       </section>
@@ -79,7 +78,7 @@ export default function HomePage() {
       </section>
 
       <section className="section sponsors soft-bg">
-        <div className="container"><h2>Our Sponsors</h2><p>These programs are made possible by the generosity of these organizations.</p><div className="sponsor-grid">{Array.from({ length: 9 }, (_, i) => <div key={i}><Image src={`/ccb/sponsor-${i + 1}.png`} width={150} height={150} alt={`Community sponsor ${i + 1}`} /></div>)}</div></div>
+        <div className="container"><h2>Our Sponsors</h2><p>These programs are made possible by the generosity of these organizations.</p><div className="sponsor-grid">{Array.from({ length: 6 }, (_, i) => <div key={i}><Image src={`/ccb/sponsor-${i + 1}.png`} width={150} height={150} alt={`Community sponsor ${i + 1}`} /></div>)}</div></div>
       </section>
 
       <section className="section final-cta dotted-bg"><div className="container"><h2>Children need help.<br /><em>Harvest helps.</em> You can too.</h2><div className="button-row center"><a className="button" href="https://secure.qgiv.com/for/citruscountyblessings/">Donate now</a><Link className="button button-outline" href="/how-to-help">How to help</Link></div></div></section>
