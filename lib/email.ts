@@ -30,7 +30,7 @@ export async function sendApplicationNotification(a: any) {
   const recruiterHtml = `
 <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto">
   <div style="background:#0a1628;padding:28px 32px;border-bottom:4px solid #c0152a">
-    <p style="color:#c0152a;font-size:10px;letter-spacing:3px;text-transform:uppercase;margin:0 0 4px;font-weight:700">PeopleBook · Ray Land Inc.</p>
+    <p style="color:#c0152a;font-size:10px;letter-spacing:3px;text-transform:uppercase;margin:0 0 4px;font-weight:700">Citrus County Blessings</p>
     <h1 style="color:white;margin:0;font-size:22px;font-weight:400;font-family:Georgia,serif">New Application Received</h1>
     <span style="background:#c0152a;color:white;font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;display:inline-block;margin-top:8px;letter-spacing:1px">
       ${roleTitle || 'General Application'}
@@ -74,7 +74,7 @@ export async function sendApplicationNotification(a: any) {
     </div>
   </div>
   <div style="background:#0a1628;padding:16px 32px;text-align:center">
-    <p style="color:#4a6080;font-size:11px;margin:0">PeopleBook · Ray Land Inc. · Stable Engineering // Design Innovation // Perpetual Service</p>
+    <p style="color:#4a6080;font-size:11px;margin:0">Citrus County Blessings · Silencing Weekend Hunger</p>
   </div>
 </div>`
 
@@ -106,7 +106,7 @@ export async function sendApplicationNotification(a: any) {
     </p>
   </div>
   <div style="background:#0a1628;padding:14px;text-align:center">
-    <p style="color:#4a6080;font-size:11px;margin:0">Ray Land Inc. · PeopleBook Recruiting Portal</p>
+    <p style="color:#4a6080;font-size:11px;margin:0">Citrus County Blessings</p>
   </div>
 </div>`
 
@@ -118,7 +118,7 @@ export async function sendApplicationNotification(a: any) {
 
     // Notify all recruiters
     await resend.emails.send({
-      from:        'PeopleBook <noreply@runbusiness.com>',
+      from:        'Citrus County Blessings <noreply@runbusiness.com>',
       to:          NOTIFY,
       subject:     `New Application — ${fullName} (${roleTitle || 'General'})`,
       html:        recruiterHtml,
@@ -128,7 +128,7 @@ export async function sendApplicationNotification(a: any) {
     // Confirm to applicant
     if (email) {
       await resend.emails.send({
-        from:    'PeopleBook <noreply@runbusiness.com>',
+        from:    'Citrus County Blessings <noreply@runbusiness.com>',
         to:      [email],
         subject: `Application Received — ${fullName}`,
         html:    applicantHtml,

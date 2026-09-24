@@ -1,6 +1,6 @@
 /**
  * lib/birdy/agents/workflows.ts
- * Pre-built workflow definitions for Rayland / PeopleBook operations.
+ * Pre-built workflow definitions for Citrus County Blessings operations.
  * Each workflow is a reusable, observable, multi-step AI pipeline.
  */
 

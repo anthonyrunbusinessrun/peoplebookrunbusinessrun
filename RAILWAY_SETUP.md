@@ -19,7 +19,7 @@
 ## Step 1 — Set ANTHROPIC_API_KEY (do this right now — unlocks Birdy chat)
 
 1. Open https://railway.com/project/d322220a-9e04-4644-9a0c-e6f0429dc859
-2. Click your **web service** (the Next.js/peoplebook service)
+2. Click your **web service** (the Citrus County Blessings Next.js service)
 3. Click **Variables** tab
 4. Click **+ New Variable**
 5. Name: `ANTHROPIC_API_KEY`
@@ -271,4 +271,3 @@ curl -X POST https://your-app.railway.app/api/birdy/chat \
 ### "Too many requests" errors
 → Rate limit: 10 requests/minute per IP
 → This is intentional — adjust in `lib/birdy/rate-limiter.ts` if needed for team
-

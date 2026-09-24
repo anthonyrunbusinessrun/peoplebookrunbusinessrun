@@ -1,7 +1,7 @@
 /**
  * lib/birdy/quick-actions.ts
  * Pre-built AI workflow registry — one-click actions that fire into the chat pipeline.
- * Actions are recruiting-focused to match Rayland Inc. / PeopleBook context.
+ * Administrative quick actions for the Citrus County Blessings site.
  *
  * DESIGN: Actions pre-fill the chat input with a structured prompt.
  * They use the same SSE streaming endpoint as regular chat — no extra API needed.

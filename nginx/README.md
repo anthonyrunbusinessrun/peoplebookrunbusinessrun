@@ -35,7 +35,7 @@ PORT=8080
 ```
 
 > **Note:** `web` is the name of your Next.js service. If you named it differently in Railway,
-> use that name instead: e.g. `peoplebook.railway.internal:3000`.
+> use that name instead: e.g. `citrus-county-blessings.railway.internal:3000`.
 
 ### Step 4: Configure domains
 

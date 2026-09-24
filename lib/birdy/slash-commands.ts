@@ -57,7 +57,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     command:     'help',
     label:       'Help',
     description: 'What can Birdy do?',
-    template:    'What are all the things you can help me with in PeopleBook?',
+    template:    'What are all the things you can help me with for Citrus County Blessings?',
   },
 ]
 

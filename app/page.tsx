@@ -72,7 +72,7 @@ export default function HomePage() {
           <div className="giving-grid">
             <article><Heart /><h3>Donate Your Treasure</h3><p>Every gift funds weekend food bags and summer produce for a child who needs it.</p><a href="https://secure.qgiv.com/for/citruscountyblessings/">Donate</a></article>
             <article><UserRound /><h3>Donate Your Time</h3><p>Volunteers are the glue that holds our organization together. Every small task changes lives.</p><Link href="/how-to-help#volunteer">Volunteer</Link></article>
-            <article><Star /><h3>Donate Your Talent</h3><p>Organizing, data entry, creative fundraising, repair work — your talents are limitless.</p><Link href="/contact-us">Get involved</Link></article>
+            <article><Star /><h3>Donate Your Talent</h3><p>Organizing, data entry, creative fundraising, social media, board service — talents are limitless.</p><Link href="/contact-us">Get involved</Link></article>
           </div>
         </div>
       </section>
@@ -81,7 +81,7 @@ export default function HomePage() {
         <div className="container"><h2>Our Sponsors</h2><p>These programs are made possible by the generosity of these organizations.</p><div className="sponsor-grid">{Array.from({ length: 6 }, (_, i) => <div key={i}><Image src={`/ccb/sponsor-${i + 1}.png`} width={150} height={150} alt={`Community sponsor ${i + 1}`} /></div>)}</div></div>
       </section>
 
-      <section className="section final-cta dotted-bg"><div className="container"><h2>Children need help.<br /><em>Harvest helps.</em> You can too.</h2><div className="button-row center"><a className="button" href="https://secure.qgiv.com/for/citruscountyblessings/">Donate now</a><Link className="button button-outline" href="/how-to-help">How to help</Link></div></div></section>
+      <section className="section final-cta dotted-bg"><div className="container"><h2>Children need help.<br /><em>Harvest helps.</em> You can too.</h2><div className="button-row center"><a className="button" href="https://secure.qgiv.com/for/citruscountyblessings/">Donate now</a><Link className="button button-outline" href="/how-to-help">Volunteer Today</Link></div></div></section>
       <SiteFooter />
     </main>
   )

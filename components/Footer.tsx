@@ -60,7 +60,7 @@ export default function Footer() {
             Stable Engineering // Design Innovation // Perpetual Service
           </p>
           <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.05em' }}>
-            © 2026 Rayland Inc. · PeopleBook Recruiting Portal 
+            © 2026 Citrus County Harvest · Citrus County Blessings
           </p>
         </div>
       </div>

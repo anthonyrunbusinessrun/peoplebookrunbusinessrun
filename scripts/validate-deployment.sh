@@ -7,7 +7,7 @@
 
 set -euo pipefail
 
-BASE_URL="${BASE_URL:-https://peoplebook.railway.app}"
+BASE_URL="${BASE_URL:-https://citrus-county-blessings.up.railway.app}"
 SESSION_ID="validate-$(date +%s)"
 PASS=0
 FAIL=0
