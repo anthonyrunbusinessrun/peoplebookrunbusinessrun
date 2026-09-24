@@ -5,14 +5,15 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   const sessionId = req.nextUrl.searchParams.get('sessionId')
   if (!sessionId) {
     return NextResponse.json({ error: 'sessionId required' }, { status: 400 })
   }
 
-  const messages = await getMessages(params.id, sessionId)
+  const messages = await getMessages(id, sessionId)
   if (messages === null) {
     return NextResponse.json({ error: 'Conversation not found' }, { status: 404 })
   }

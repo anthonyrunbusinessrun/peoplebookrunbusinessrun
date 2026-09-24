@@ -1,24 +1,13 @@
 import type { Metadata } from 'next'
 import './globals.css'
-import BirdyButton from '@/components/birdy/BirdyButton'
 
 export const metadata: Metadata = {
-  title: 'PeopleBook — Rayland Inc.',
-  description: 'Rayland Inc Recruiting Pipeline Portal',
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://citruscountyblessings.org'),
+  title: { default: 'Citrus County Blessings', template: '%s | Citrus County Blessings' },
+  description: 'Providing nutritious food to Citrus County schoolchildren on weekends and throughout the summer.',
+  openGraph: { title: 'Citrus County Blessings', description: 'When kids go hungry, everything else stops.', type: 'website' },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="en">
-      <head>
-        <link rel="icon" href="/favicon.png" type="image/png" sizes="32x32" />
-        <link rel="apple-touch-icon" href="/apple-icon.png" />
-      </head>
-      <body className="bg-gray-50 text-gray-900 font-sans antialiased">
-        {children}
-        {/* Birdy AI — mounts outside page flow, fixed position */}
-        <BirdyButton />
-      </body>
-    </html>
-  )
+  return <html lang="en"><body>{children}</body></html>
 }

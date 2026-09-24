@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  agentRules: false,
   reactStrictMode: true,
   productionBrowserSourceMaps: false,
   compress: true,
@@ -13,19 +14,16 @@ const nextConfig = {
     ],
   },
 
-  experimental: {
-    serverComponentsExternalPackages: [
-      '@prisma/client',
-      '@anthropic-ai/sdk',
-      'airtable',
-      'pdf-parse',
-    ],
-  },
+  serverExternalPackages: [
+    '@prisma/client',
+    '@anthropic-ai/sdk',
+    'airtable',
+    'pdf-parse',
+  ],
 
   async headers() {
     return [
       { source: '/(.*)', headers: [{ key: 'X-DNS-Prefetch-Control', value: 'on' }] },
-      { source: '/_next/static/(.*)', headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }] },
     ]
   },
 }

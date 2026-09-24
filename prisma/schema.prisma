@@ -1,6 +1,7 @@
 generator client {
   provider = "prisma-client-js"
 }
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -9,130 +10,300 @@ datasource db {
 // ── Existing portal models ─────────────────────────────────────────────────
 
 model Role {
-  id String @id @default(cuid())
-  airtableId String? @unique
-  title String; department String; status RoleStatus @default(OPEN)
-  priority Priority @default(MEDIUM); employmentType String?
-  dateOpened DateTime?; dateFilled DateTime?; notes String?
-  shift String?; hours String?; openings Int @default(1)
-  createdAt DateTime @default(now()); updatedAt DateTime @updatedAt
-  applicants ApplicantRole[]
+  id             String          @id @default(cuid())
+  airtableId     String?         @unique
+  title          String
+  department     String
+  status         RoleStatus      @default(OPEN)
+  priority       Priority        @default(MEDIUM)
+  employmentType String?
+  dateOpened     DateTime?
+  dateFilled     DateTime?
+  notes          String?
+  shift          String?
+  hours          String?
+  openings       Int             @default(1)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  applicants     ApplicantRole[]
+
   @@map("roles")
 }
 
 model Applicant {
-  id String @id @default(cuid()); airtableId String? @unique
-  fullName String; email String?; phone String?; stage Stage @default(NEW)
-  cityLocation String?; linkedinUrl String?; availabilityDate DateTime?
-  salaryExpectation Float?; source String?; yearsExperience Int?
-  highestEducation String?; workAuthorization String?; shiftPreference String?
-  referredBy String?; internalRating String?; interviewScore Int?
-  applicationScore Int?; offerExtended Boolean @default(false)
-  offerAccepted Boolean @default(false); doNotContact Boolean @default(false)
-  interviewDate DateTime?; lastContacted DateTime?; dateApplied DateTime?
-  notes String?
-  q1 String? q2 String? q3 String? q4 String? q5 String?
-  q6 String? q7 String? q8 String? q9 String? q10 String?
-  q11 String? q12 String? q13 String? q14 String? q15 String?
-  resumeUrl String?; resumeName String?
-  createdAt DateTime @default(now()); updatedAt DateTime @updatedAt
-  roles ApplicantRole[]; skills ApplicantSkill[]
+  id                String           @id @default(cuid())
+  airtableId        String?          @unique
+  fullName          String
+  email             String?
+  phone             String?
+  stage             Stage            @default(NEW)
+  cityLocation      String?
+  linkedinUrl       String?
+  availabilityDate  DateTime?
+  salaryExpectation Float?
+  source            String?
+  yearsExperience   Int?
+  highestEducation  String?
+  workAuthorization String?
+  shiftPreference   String?
+  referredBy        String?
+  internalRating    String?
+  interviewScore    Int?
+  applicationScore  Int?
+  offerExtended     Boolean          @default(false)
+  offerAccepted     Boolean          @default(false)
+  doNotContact      Boolean          @default(false)
+  interviewDate     DateTime?
+  lastContacted     DateTime?
+  dateApplied       DateTime?
+  notes             String?
+  q1                String?
+  q2                String?
+  q3                String?
+  q4                String?
+  q5                String?
+  q6                String?
+  q7                String?
+  q8                String?
+  q9                String?
+  q10               String?
+  q11               String?
+  q12               String?
+  q13               String?
+  q14               String?
+  q15               String?
+  resumeUrl         String?
+  resumeName        String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  roles             ApplicantRole[]
+  skills            ApplicantSkill[]
+
   @@map("applicants")
 }
 
 model ApplicantRole {
-  applicantId String; roleId String; type RoleLinkType @default(APPLIED)
-  applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Cascade)
-  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  @@id([applicantId, roleId, type]); @@map("applicant_roles")
+  applicantId String
+  roleId      String
+  type        RoleLinkType @default(APPLIED)
+  applicant   Applicant    @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+  role        Role         @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([applicantId, roleId, type])
+  @@map("applicant_roles")
 }
 
 model Skill {
-  id String @id @default(cuid()); airtableId String? @unique
-  name String @unique; category String?; notes String?
-  createdAt DateTime @default(now()); applicants ApplicantSkill[]
+  id         String           @id @default(cuid())
+  airtableId String?          @unique
+  name       String           @unique
+  category   String?
+  notes      String?
+  createdAt  DateTime         @default(now())
+  applicants ApplicantSkill[]
+
   @@map("skills")
 }
 
 model ApplicantSkill {
-  applicantId String; skillId String
-  applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Cascade)
-  skill Skill @relation(fields: [skillId], references: [id], onDelete: Cascade)
-  @@id([applicantId, skillId]); @@map("applicant_skills")
+  applicantId String
+  skillId     String
+  applicant   Applicant @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+  skill       Skill     @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([applicantId, skillId])
+  @@map("applicant_skills")
+}
+
+// ── Citrus County Blessings public website ────────────────────────────────
+
+model ContactSubmission {
+  id        String   @id @default(cuid())
+  firstName String
+  lastName  String
+  email     String
+  phone     String?
+  subject   String
+  message   String
+  status    String   @default("NEW")
+  createdAt DateTime @default(now())
+
+  @@index([createdAt(sort: Desc)])
+  @@map("contact_submissions")
+}
+
+model EnrollmentRequest {
+  id         String   @id @default(cuid())
+  parentName String
+  email      String
+  phone      String
+  zipCode    String
+  school     String
+  childCount Int
+  consent    Boolean  @default(false)
+  status     String   @default("RECEIVED")
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt(sort: Desc)])
+  @@map("enrollment_requests")
+}
+
+model VolunteerInterest {
+  id           String   @id @default(cuid())
+  name         String
+  email        String
+  phone        String?
+  availability String
+  message      String?
+  status       String   @default("NEW")
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt(sort: Desc)])
+  @@map("volunteer_interests")
+}
+
+model NewsletterSubscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("newsletter_subscribers")
 }
 
 // ── Birdy core ─────────────────────────────────────────────────────────────
 
 model BirdyConversation {
-  id String @id @default(cuid()); sessionId String
-  title String?; module String?
-  createdAt DateTime @default(now()); updatedAt DateTime @updatedAt
-  messages BirdyMessage[]; summaries BirdyMemorySummary[]
-  @@index([sessionId, updatedAt(sort: Desc)]); @@map("birdy_conversations")
+  id        String               @id @default(cuid())
+  sessionId String
+  title     String?
+  module    String?
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  messages  BirdyMessage[]
+  summaries BirdyMemorySummary[]
+
+  @@index([sessionId, updatedAt(sort: Desc)])
+  @@map("birdy_conversations")
 }
 
 model BirdyMessage {
-  id String @id @default(cuid()); conversationId String; role BirdyRole
-  content String; modelUsed String?; provider String?
-  tokensIn Int @default(0); tokensOut Int @default(0); latencyMs Int?
-  actionKey String?; citations Json?
-  createdAt DateTime @default(now())
-  conversation BirdyConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  @@index([conversationId, createdAt(sort: Asc)]); @@map("birdy_messages")
+  id             String            @id @default(cuid())
+  conversationId String
+  role           BirdyRole
+  content        String
+  modelUsed      String?
+  provider       String?
+  tokensIn       Int               @default(0)
+  tokensOut      Int               @default(0)
+  latencyMs      Int?
+  actionKey      String?
+  citations      Json?
+  createdAt      DateTime          @default(now())
+  conversation   BirdyConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt(sort: Asc)])
+  @@map("birdy_messages")
 }
 
 // ── Birdy observability ────────────────────────────────────────────────────
 
 model BirdyUsageLog {
-  id String @id @default(cuid()); sessionId String; conversationId String?
-  provider String; model String; intent String?
-  tokensIn Int @default(0); tokensOut Int @default(0); latencyMs Int?
-  ragChunksUsed Int?; ragLatencyMs Int?
-  status String @default("success"); errorMessage String?
-  pageModule String?; actionKey String?
-  createdAt DateTime @default(now())
-  @@index([sessionId, createdAt(sort: Desc)]); @@index([createdAt(sort: Desc)]); @@map("birdy_usage_logs")
+  id             String   @id @default(cuid())
+  sessionId      String
+  conversationId String?
+  provider       String
+  model          String
+  intent         String?
+  tokensIn       Int      @default(0)
+  tokensOut      Int      @default(0)
+  latencyMs      Int?
+  ragChunksUsed  Int?
+  ragLatencyMs   Int?
+  status         String   @default("success")
+  errorMessage   String?
+  pageModule     String?
+  actionKey      String?
+  createdAt      DateTime @default(now())
+
+  @@index([sessionId, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+  @@map("birdy_usage_logs")
 }
 
 // ── Birdy knowledge base ───────────────────────────────────────────────────
 
 model BirdyDocument {
-  id String @id @default(cuid()); sessionId String; name String
-  mimeType String; sizeBytes Int?; storageUrl String
-  status DocumentStatus @default(PENDING); chunkCount Int @default(0)
-  wordCount Int?; errorMsg String?; namespace String @default("default")
-  createdAt DateTime @default(now()); updatedAt DateTime @updatedAt
-  chunks BirdyDocumentChunk[]; embeddings BirdyEmbedding[]
-  @@index([sessionId, createdAt(sort: Desc)]); @@map("birdy_documents")
+  id         String               @id @default(cuid())
+  sessionId  String
+  name       String
+  mimeType   String
+  sizeBytes  Int?
+  storageUrl String
+  status     DocumentStatus       @default(PENDING)
+  chunkCount Int                  @default(0)
+  wordCount  Int?
+  errorMsg   String?
+  namespace  String               @default("default")
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+  chunks     BirdyDocumentChunk[]
+  embeddings BirdyEmbedding[]
+
+  @@index([sessionId, createdAt(sort: Desc)])
+  @@map("birdy_documents")
 }
 
 model BirdyDocumentChunk {
-  id String @id @default(cuid()); documentId String; chunkIndex Int
-  content String; tokenCount Int?; startChar Int?; endChar Int?
-  createdAt DateTime @default(now())
-  document BirdyDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  embedding BirdyEmbedding?
-  @@index([documentId, chunkIndex]); @@map("birdy_document_chunks")
+  id         String          @id @default(cuid())
+  documentId String
+  chunkIndex Int
+  content    String
+  tokenCount Int?
+  startChar  Int?
+  endChar    Int?
+  createdAt  DateTime        @default(now())
+  document   BirdyDocument   @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  embedding  BirdyEmbedding?
+
+  @@index([documentId, chunkIndex])
+  @@map("birdy_document_chunks")
 }
 
 model BirdyEmbedding {
-  id String @id @default(cuid()); chunkId String @unique
-  documentId String; sessionId String; namespace String @default("default")
-  preview String; embeddingDim Int @default(768)
-  embeddedAt DateTime @default(now())
-  chunk BirdyDocumentChunk @relation(fields: [chunkId], references: [id], onDelete: Cascade)
-  document BirdyDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  @@index([sessionId, namespace]); @@map("birdy_embeddings")
+  id           String             @id @default(cuid())
+  chunkId      String             @unique
+  documentId   String
+  sessionId    String
+  namespace    String             @default("default")
+  preview      String
+  embeddingDim Int                @default(768)
+  embeddedAt   DateTime           @default(now())
+  chunk        BirdyDocumentChunk @relation(fields: [chunkId], references: [id], onDelete: Cascade)
+  document     BirdyDocument      @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, namespace])
+  @@map("birdy_embeddings")
 }
 
 // ── Birdy memory ───────────────────────────────────────────────────────────
 
 model BirdyMemorySummary {
-  id String @id @default(cuid()); sessionId String; conversationId String
-  summary String; messageCount Int; fromMessageId String?; toMessageId String?
-  model String?; createdAt DateTime @default(now())
-  conversation BirdyConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  @@index([sessionId, createdAt(sort: Desc)]); @@index([conversationId]); @@map("birdy_memory_summaries")
+  id             String            @id @default(cuid())
+  sessionId      String
+  conversationId String
+  summary        String
+  messageCount   Int
+  fromMessageId  String?
+  toMessageId    String?
+  model          String?
+  createdAt      DateTime          @default(now())
+  conversation   BirdyConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt(sort: Desc)])
+  @@index([conversationId])
+  @@map("birdy_memory_summaries")
 }
 
 // ── Birdy agent runtime ────────────────────────────────────────────────────
@@ -140,11 +311,11 @@ model BirdyMemorySummary {
 model BirdyAgentTask {
   id           String          @id @default(cuid())
   sessionId    String
-  workflowId   String          // references WORKFLOW_REGISTRY key
+  workflowId   String // references WORKFLOW_REGISTRY key
   workflowName String
   status       AgentTaskStatus @default(QUEUED)
-  inputJson    Json            // workflow input parameters
-  outputJson   Json?           // workflow final output
+  inputJson    Json // workflow input parameters
+  outputJson   Json? // workflow final output
   errorMessage String?
   stepCount    Int             @default(0)
   stepsTotal   Int             @default(0)
@@ -152,33 +323,75 @@ model BirdyAgentTask {
   completedAt  DateTime?
   createdAt    DateTime        @default(now())
   toolCalls    BirdyToolCall[]
+
   @@index([sessionId, createdAt(sort: Desc)])
   @@index([status])
   @@map("birdy_agent_tasks")
 }
 
 model BirdyToolCall {
-  id           String   @id @default(cuid())
+  id           String         @id @default(cuid())
   taskId       String
   toolName     String
   stepName     String
   inputJson    Json
   outputJson   Json?
-  status       String   @default("success")   // success | error | timeout
+  status       String         @default("success") // success | error | timeout
   latencyMs    Int?
   errorMessage String?
-  createdAt    DateTime @default(now())
+  createdAt    DateTime       @default(now())
   task         BirdyAgentTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
   @@index([taskId, createdAt(sort: Asc)])
   @@map("birdy_tool_calls")
 }
 
 // ── Enums ──────────────────────────────────────────────────────────────────
 
-enum RoleStatus    { OPEN ON_HOLD FILLED CLOSED }
-enum Priority      { HIGH MEDIUM LOW }
-enum Stage         { NEW SCREENING INTERVIEW OFFER HIRED REJECTED ON_HOLD }
-enum RoleLinkType  { APPLIED CAPABLE }
-enum BirdyRole     { USER ASSISTANT }
-enum DocumentStatus { PENDING PROCESSING READY ERROR }
-enum AgentTaskStatus { QUEUED RUNNING COMPLETED FAILED CANCELLED }
+enum RoleStatus {
+  OPEN
+  ON_HOLD
+  FILLED
+  CLOSED
+}
+
+enum Priority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum Stage {
+  NEW
+  SCREENING
+  INTERVIEW
+  OFFER
+  HIRED
+  REJECTED
+  ON_HOLD
+}
+
+enum RoleLinkType {
+  APPLIED
+  CAPABLE
+}
+
+enum BirdyRole {
+  USER
+  ASSISTANT
+}
+
+enum DocumentStatus {
+  PENDING
+  PROCESSING
+  READY
+  ERROR
+}
+
+enum AgentTaskStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}

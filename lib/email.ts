@@ -1,7 +1,5 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-
 const NOTIFY = [
   'anthony@runbusiness.com',
   'kaye@runbusiness.com',
@@ -10,6 +8,12 @@ const NOTIFY = [
 ]
 
 export async function sendApplicationNotification(a: any) {
+  const apiKey = process.env.RESEND_API_KEY
+  if (!apiKey) {
+    console.warn('RESEND_API_KEY is not configured; skipping application email.')
+    return
+  }
+  const resend = new Resend(apiKey)
   const {
     fullName, email, phone, cityLocation,
     workAuthorization, shiftPreference, source,

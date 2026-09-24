@@ -18,8 +18,12 @@ import { cached, invalidate } from '@/lib/birdy/cache'
 const ROLES_CACHE_KEY = 'airtable:roles'
 const ROLES_TTL_MS    = 5 * 60 * 1000   // 5 minutes
 
-const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY })
-  .base(process.env.AIRTABLE_BASE_ID!)
+function getBase() {
+  const apiKey = process.env.AIRTABLE_API_KEY
+  const baseId = process.env.AIRTABLE_BASE_ID
+  if (!apiKey || !baseId) return null
+  return new Airtable({ apiKey }).base(baseId)
+}
 
 export type Role = {
   id:         string
@@ -36,6 +40,8 @@ export type Role = {
 }
 
 async function fetchRoles(): Promise<Role[]> {
+  const base = getBase()
+  if (!base || !process.env.AIRTABLE_ROLES_TABLE) return []
   const records = await base(process.env.AIRTABLE_ROLES_TABLE!)
     .select({ sort: [{ field: 'Status', direction: 'asc' }] })
     .all()
@@ -90,6 +96,8 @@ function mapSource(source?: string): string {
 
 export async function createApplicantInAirtable(a: any): Promise<string | null> {
   try {
+    const base = getBase()
+    if (!base || !process.env.AIRTABLE_APPLICANTS_TABLE) return null
     const fields: Record<string, any> = {
       'flde9vGp44KhjGEVp': a.fullName           ?? '',
       'fldUADnCVHXY9qNzG': a.email              ?? '',
@@ -124,6 +132,8 @@ export async function createApplicantInAirtable(a: any): Promise<string | null> 
 
 export async function getApplicantFromAirtable(airtableId: string) {
   try {
+    const base = getBase()
+    if (!base || !process.env.AIRTABLE_APPLICANTS_TABLE) return null
     const record = await base(process.env.AIRTABLE_APPLICANTS_TABLE!).find(airtableId)
     const attachments = record.get('fldVvojhsidRjJDDk') as any[]
     const resumeUrl   = attachments?.[0]?.url      ?? null

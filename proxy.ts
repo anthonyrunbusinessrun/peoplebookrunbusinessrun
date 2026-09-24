@@ -34,7 +34,7 @@ const API_PATHS_NO_CACHE = ['/api/']
 // Paths that get long-lived immutable caching
 const STATIC_PATHS = ['/_next/static/', '/favicon', '/apple-icon', '/public/']
 
-export function middleware(req: NextRequest): NextResponse {
+export function proxy(req: NextRequest): NextResponse {
   const { pathname } = req.nextUrl
   const ua = req.headers.get('user-agent') ?? ''
 

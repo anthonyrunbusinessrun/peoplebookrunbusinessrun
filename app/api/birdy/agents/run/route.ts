@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getWorkflow } from '@/lib/birdy/agents/workflows'
 import { AgentRunner } from '@/lib/birdy/agents/runner'
+import type { Prisma } from '@prisma/client'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
       sessionId,
       workflowId,
       workflowName: workflow.name,
-      inputJson:    input,
+      inputJson:    input as Prisma.InputJsonValue,
       stepsTotal:   workflow.steps.length,
     },
   })
