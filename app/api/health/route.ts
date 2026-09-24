@@ -42,10 +42,13 @@ export async function GET() {
     checks.pgvector = { status: vectorInitDone ? 'ok' : 'pending' }
   }
 
-  // ── Claude API key ────────────────────────────────────────────────────────
+  // ── Claude API key (optional — only used by legacy Birdy features) ────────
   const claudeKey = !!process.env.ANTHROPIC_API_KEY
-  checks.claude = { status: claudeKey ? 'ok' : 'error', configured: claudeKey }
-  if (!claudeKey) allCriticalOk = false
+  checks.claude = {
+    status: claudeKey ? 'ok' : 'not_configured',
+    configured: claudeKey,
+    ...(claudeKey ? {} : { note: 'Core website features remain available' }),
+  }
 
   // ── Ollama (non-critical — graceful degradation to Claude) ───────────────
   if (process.env.OLLAMA_BASE_URL) {
